@@ -21,7 +21,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QPushButton, QApplication, QMessageBox, QDesktopWidget, \
     QSizePolicy, QLineEdit, QComboBox, QLabel,  QHBoxLayout, QVBoxLayout, QListWidget, QListWidgetItem, QSplitter, QWidget, QInputDialog, QScrollArea
-from PyQt5.QtGui import QIcon, QPixmap, QImage
+from PyQt5.QtGui import QIcon, QPixmap, QImage, QColor
 from PyQt5.QtCore import QTimer, QByteArray, QBuffer
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore, QtGui
@@ -48,12 +48,11 @@ timeLimScale = ['minute', 'minute', 'hour', 'hour', 'day', 'day', 'day']
 
 PRICE_URL = "https://min-api.cryptocompare.com/data/histo"
 
-# values for sublot grid definition in matplotlib
-col = 4
-row = 3
-
 # custom colors
 CANVAS_BG_COL = "gainsboro"
+#CANVAS_BG_COL = "#595959"
+#CANVAS_BG_COL = "grey"
+#PLOT_BG_COL = "#595959"
 PLOT_BG_COL = "lightgrey"
 TITLE_COL = "k"
 GRID_COL = 'grey'
@@ -123,7 +122,6 @@ def get_top_coins (top=10):
 
 # prints data to console
 def print_data_console(all_price_data, coinList, timeScale, currency, lim, growthRates, last_time):
-
     print("\nNew data fetched ({}), timeframe: {}, currency: {}".format(last_time, timeWords[timeScale], currency))
     print ('{0:5}{1:>10}{2:>10}'.format ('COIN', 'PRICE', '% CHANGE'))
     for i, coin in enumerate(coinList):
@@ -159,220 +157,6 @@ def format_xaxis (plt, timeScale):
         ax.xaxis.set_major_locator (mdates.DayLocator (interval=60))
         ax.xaxis.set_major_formatter (mdates.DateFormatter ('%m/%y'))
     return plt
-
-
-# draws a bar graph given an input of GR (array) and coinList (dictionary)
-def drawBarGraph (GR, coinList):
-
-    ind = [n for n in range (len (coinList))]
-    width = 0.5  # the width of the bars
-
-    axBar = plt.axes ([0.1, 0.2, 0.6, 0.1])
-    rects = axBar.bar (ind, GR, width, color=list(coinList.values()))
-
-    axBar.set_ylabel ('%')
-    axBar.set_title ('Change in %')
-    axBar.set_xticks (ind)
-    axBar.set_facecolor(PLOT_BG_COL)
-    axBar.yaxis.grid (color=GRID_COL, linestyle='dashed')
-    axBar.set_axisbelow (True)
-
-    xLabels = coinList.keys()
-    axBar.set_xticklabels (xLabels)
-
-    # put the labels on the graphs
-    for rect in rects:
-        height = rect.get_height ()
-        axBar.text (rect.get_x () + rect.get_width () / 2., 1.0 * height, "%.1f" % float (height), ha='center',
-                    va='bottom')
-        # add colors
-    plt.draw ()
-
-
-# Main Graph Plotting function
-def plot_multi (coinList, currency, timeScale, time, lim, view):
-
-    growthRates = []  # will be passed to the batr graph drawing function
-
-    # get all data with asyncio (blackmagic!)
-    all_price_data = loop.run_until_complete (main (currency, time, lim, coinList))
-
-    # View 0 shows a grid
-    if view == 0:
-        # adjust grid structure depending on number of items to show (hacky but i don't wana mess with matplotlib now)
-        list_len = len (coinList)
-        row = 1
-        col = list_len
-        if list_len > 2:
-            row = 2
-            col = math.ceil(list_len / row)
-        if list_len > 6:
-            row = 3
-            col = col = math.ceil(list_len / row)
-
-        pl = 1  # sublots counter
-
-        for coin in coinList:
-            # draw current sublot
-            p = plt.subplot (row, col, pl)
-            pl += 1
-            #       plt.tight_layout()
-
-            # extract prices for current coin from all_price_data
-            price_data = all_price_data[coin]
-
-            prices = []
-            times = []
-            volumes = []
-
-            # mambojambo to catch special case: coin == base currency (no data provided by api)
-            # write prices and dates to array avoiding exceptions and ugly graphs further down
-            if currency == coin:
-                for i in range (lim+1):
-                    prices.append (1.0)
-                    volumes.append (1.0)
-                    if time == 'minute':
-                        d = dt.datetime.now () - dt.timedelta (minutes=lim)
-                        d = d + dt.timedelta (minutes=i)
-                    elif time == 'hour':
-                        d = dt.datetime.now () - dt.timedelta (hours=lim)
-                        d = d + dt.timedelta (hours=i)
-                    elif time == 'day':
-                        d = dt.datetime.now () - dt.timedelta (days=lim)
-                        d = d + dt.timedelta (days=i)
-                    times.append(d)
-                # drawing every plot
-                plt.plot (times, prices, color=coinList[coin])
-                ax = plt.gca ()
-                ax.set_facecolor (PLOT_BG_COL)
-                ax.xaxis.grid (color=GRID_COL, linestyle='dashed')
-                ax.yaxis.grid (color=GRID_COL, linestyle='dashed')
-
-            else:
-                for data in price_data:
-                    prices.append (data["close"])
-                    times.append (dt.datetime.fromtimestamp (data["time"]))
-                    volumes.append(data["volumefrom"]+(data["volumeto"]))
-
-                # draw this coins plot
-                # prices
-                ax = plt.gca ()
-                # volumes on secondary axis
-                ax2 = ax.twinx ()
-
-                # correct x-axis ticks and date format
-                ax.set_facecolor (PLOT_BG_COL)
-                ax.xaxis.grid (color=GRID_COL, linestyle='dashed')
-                ax.yaxis.grid (color=GRID_COL, linestyle='dashed')
-                color = GRID_COL
-                ax2.tick_params (axis='y', labelcolor=color)
-
-                ax.plot (times, prices, color=coinList[coin])
-                ax2.fill_between (times, 0, volumes, facecolor=color, alpha=0.5)
-                #ax2.set_yticklabels ([])
-                ax2.axis ('off')
-                format_xaxis (plt, timeScale)
-
-
-
-
-            changePct = calcGrowthRate (prices)
-            growthRates.append (changePct)
-
-            # save timestamp of last data received for later use
-            if len(times) > 0:
-                last_time = times[len(times)-1]
-                # add title and label (price infos: Min, MAX, LAST) to every subplot
-                plt.title (str (coin))
-                plt.xlabel ('Min: ' + str (min (prices)) + ' - Max: ' + str (max (prices)) + ' - Last: ' + str (
-                    prices[len (prices) - 1]))
-            else:
-                last_time = dt.datetime.now()
-
-    # View 1 shows a single graph with all coins index and lotted together
-    elif view == 1:
-
-        # create one single subplot
-        p = plt.subplot (111)
-
-        for coin in coinList:
-            # querry data for curent coin and draw it to subplot
-            prices = []
-            times = []
-
-            # extract prices for current coin from all_price_data
-            price_data = all_price_data[coin]
-
-            # write prices to array  when coin == currency, avoiding exceptions and ugly graphs further down
-            if currency == coin:
-                for i in range (lim+1):
-                    prices.append (1.0)
-                    times.append (dt.datetime.now())
-            else:
-                for data in price_data:
-                    prices.append (data["close"])
-                    times.append (dt.datetime.fromtimestamp (data["time"]))
-
-            drawThisCoin = False
-
-            if len(times) > 0:
-                last_time = times[len (times) - 1]
-
-                # index coins to 100 and set a flag to not plot if no initial data available
-                drawThisCoin = True
-                base = prices[0]
-                if base == 0: #check for bad data
-                    drawThisCoin = False
-                else:
-                    for i in range (len (prices)):
-                        prices[i] = prices[i] / base * 100
-
-                # add title
-                plt.title ("Indexed Crypto-Prices")
-                plt.draw ()
-
-            # plot current coin only if data is valid
-            if drawThisCoin == True:
-                plt.plot (times, prices, color=coinList[coin], label=coin)
-                changePct = calcGrowthRate (prices)
-                growthRates.append (changePct)
-                plt.draw ()
-                plt.legend ()
-            else:
-                growthRates.append (0)
-
-        # correct x-axis ticks and date format
-        format_xaxis (plt, timeScale)
-
-        # custom bg color
-        ax = plt.gca ()
-        ax.set_facecolor (PLOT_BG_COL)
-
-        # adjust legend style
-        legend = ax.legend ()
-        # Put a nicer background color on the legend.
-        legend.get_frame ().set_facecolor (CANVAS_BG_COL)
-
-        # add grid to bg
-        ax.yaxis.grid (color=GRID_COL, linestyle='dashed')
-        ax.xaxis.grid (color=GRID_COL, linestyle='dashed')
-
-    # Title / Info Box
-    plt.axes ([0.1, 0.9, 0.5, 0.05])
-    plt.axis ('off')
-    t = 'Prices in ' + currency + ' last ' + str (lim) + ' ' + time + 's (' + timeWords[
-        timeScale] + ')'
-    plt.text (0, 1, t, fontproperties='sans', fontsize='xx-large')
-
-    # adjust position of subplot-grid on window
-    plt.subplots_adjust (hspace=0.6, left=0.05, right=0.75, bottom=0.4)
-
-    # print data to console
-    if len (times) > 0:
-        print_data_console (all_price_data, coinList, timeScale, currency, lim, growthRates, last_time)
-
-    # return array with calculated growth rates
-    return growthRates
 
 
 ### ASYNCIO MAGIC for simulataneous http requests ###
@@ -445,9 +229,7 @@ class App (QMainWindow):
         self.time = timeLimScale[self.timeScale]
         self.view = 0
 
-        width, height = getScreenRes (self)
-        self.thisWidth = width
-        self.thisHeight = height
+        self.thisWidth, self.thisHeight = getScreenRes (self)
 
         self.timeout = TIMEOUT
 
@@ -456,42 +238,48 @@ class App (QMainWindow):
     def initUI (self):
 
         # Window Geometry
-        self.setGeometry (0, 0, int(self.thisWidth * 0.8), int(self.thisHeight * 0.9))
-        self.center ()
+        self.setGeometry (0, 0, int(self.thisWidth * 0.4), int(self.thisHeight * 0.5))
+        #self.setStyleSheet("background-color: gainsboro")
+        self.setAutoFillBackground(True)
+        p = self.palette()
+        p.setColor(self.backgroundRole(), QColor(CANVAS_BG_COL))
+        self.setPalette(p)
+        #self.center ()
         self.setWindowTitle ('Crypto Price Browser')
         self.setWindowOpacity(1)
 
+        # MENU
         # define exit action of menu
-        exitAct = QAction (QIcon ('exit.png'), '&Exit', self)
+        exitAct = QAction (QIcon ('images/exit.png'), '&Exit', self)
         exitAct.setShortcut ('Ctrl+Q')
         exitAct.setStatusTip ('Exit application')
         exitAct.triggered.connect (qApp.quit)
 
-        toggleViewAct = QAction (QIcon ('refresh.png'), '&Toggle View', self)
+        toggleViewAct = QAction (QIcon ('images/refresh.png'), '&Toggle View', self)
         toggleViewAct.setShortcut ('Ctrl+T')
         toggleViewAct.setStatusTip ('toggle view')
         toggleViewAct.triggered.connect (self.toggleView)
 
-        loadMultiAct = QAction (QIcon ('graph.png'), '&Multi Coins Panel', self)
+        loadMultiAct = QAction (QIcon ('images/graph.png'), '&Multi Coins Panel', self)
         loadMultiAct.setShortcut ('Ctrl+M')
         loadMultiAct.setStatusTip ('Plot Multi Coins Panel')
         loadMultiAct.triggered.connect (self.loadMulti)
 
-        customizeAct = QAction (QIcon ('settings.png'), '&Customize Coins', self)
+        customizeAct = QAction (QIcon ('images/settings.png'), '&Customize Coins', self)
         customizeAct.setShortcut ('Ctrl+C')
         customizeAct.setStatusTip ('Settings')
         customizeAct.triggered.connect (self.loadSettings)
 
-        loadManyAct = QAction (QIcon ('graph.png'), '&Indexed Coins Plot', self)
+        loadManyAct = QAction (QIcon ('images/graph.png'), '&Indexed Coins Plot', self)
         loadManyAct.setShortcut ('Ctrl+I')
         loadManyAct.setStatusTip ('Plot Many Coins')
         loadManyAct.triggered.connect (self.loadMany)
 
-        aboutAct = QAction (QIcon ('about.png'), '&About', self)
+        aboutAct = QAction (QIcon ('images/about.png'), '&About', self)
         aboutAct.setStatusTip ('About')
         aboutAct.triggered.connect (self.dispAbout)
 
-        self.autoupdateAct = QAction (QIcon ('refresh.png'), '&Auto Update', self, checkable=True)
+        self.autoupdateAct = QAction (QIcon ('images/refresh.png'), '&Auto Update', self, checkable=True)
         self.autoupdateAct.setStatusTip ('Auto Update')
         self.autoupdateAct.setChecked (True)
         self.autoupdateAct.triggered.connect (self.toggle_timeout)
@@ -522,11 +310,135 @@ class App (QMainWindow):
         toolbar = self.addToolBar ('Customize CoinList')
         toolbar.addAction (customizeAct)
 
+        # MAIN PAGE LAYOUT
+        page_layout = QVBoxLayout()
+        page_widget = QWidget()
+        page_widget.setLayout(page_layout)
+
+        # MAIN PLOT
         # create the the matplot canvas instance
         self.CL = PlotMultiCoins (self)
-        self.CL.move (0, 65)  # make space for menu and buttons
+        self.CL.move (0, 50)  # make space for menu and buttons
 
-        self.show ()
+        plot_layout = QHBoxLayout()
+        plot_layout.addWidget(self.CL)
+        plot_widget = QWidget()
+        plot_widget.setContentsMargins(0,0,0,0)
+        plot_widget.setMaximumHeight(500)
+        plot_widget.setLayout(plot_layout)
+
+        # GROWTH GRAPH
+        # create the the matplot canvas instance
+        self.GL = PlotGrowthGraph(self)
+
+        graph_layout = QHBoxLayout()
+        graph_layout.addWidget(self.GL)
+        graph_widget = QWidget()
+        graph_widget.setContentsMargins(0, 0, 0, 0)
+        # plot_widget.setMinimumHeight(400)
+        graph_widget.setLayout(graph_layout)
+
+        # DROP DOWN MENU WIDGET
+        ddmenus_layout = QHBoxLayout()
+        ddmenus_widget = QWidget()
+        ddmenus_widget.setLayout(ddmenus_layout)
+        #ddmenus_widget.setFixedHeight(50)
+        ddmenus_widget.setMinimumSize(400, 50)
+        #ddmenus_widget.setMaximumSize(600, 50)
+        #ddmenus_widget.setFixedWidth(300)
+
+        page_layout.addWidget(ddmenus_widget)
+        page_layout.addWidget(plot_widget)
+        page_layout.addWidget(graph_widget)
+        self.setCentralWidget(page_widget)
+
+        # load all coins lists from file
+        self.allCoins, self.all_coin_lists_names, self.all_coin_lists, self.all_coin_lists_dict = load_coin_lists()
+        # current list
+        try:
+            self.coinList = self.all_coin_lists[self.coinListIndex]
+        except:
+            self.coinListIndex = 0
+            self.coinList = self.all_coin_lists[self.coinListIndex]
+
+        # Spacer
+
+        # drop down menus
+        self.comboBox1 = QComboBox(self)
+        for list in self.all_coin_lists_names:
+            self.comboBox1.addItem(list)
+        # self.comboBox1.move (int(self.thisWidth / 2), 55)
+        self.comboBox1.activated[int].connect(self.listChoice)
+        self.comboBox1.setCurrentIndex(self.coinListIndex)
+        ddmenus_layout.addWidget(self.comboBox1)
+
+        self.comboBox2 = QComboBox(self)
+        for t in timeWords:
+            self.comboBox2.addItem(t)
+        # self.comboBox2.move (int(self.thisWidth / 2 + self.thisWidth * 0.09), 55)
+        self.comboBox2.activated[str].connect(self.timeChoice)
+        self.comboBox2.setCurrentIndex(self.timeScale)
+        ddmenus_layout.addWidget(self.comboBox2)
+
+        self.comboBox3 = QComboBox(self)
+        for curr in currencies:
+            self.comboBox3.addItem(curr + "         ")
+        # self.comboBox3.move (int(self.thisWidth / 2 + self.thisWidth * 0.18), 55)
+        self.comboBox3.activated[str].connect(self.currencyChoice)
+        self.comboBox3.setCurrentText(self.currency)
+        ddmenus_layout.addWidget(self.comboBox3)
+
+        # create a timer for auto-update of data
+        self.timer0 = QTimer(self)
+        self.timer0.timeout.connect(self.auto_load)
+
+        if self.autoupdateAct.isChecked():
+            self.timer0.start(self.timeout)
+
+        # Draw the plots (returns an array of growth rates) and draw a bar graph
+        if len(self.coinList) > 0:
+            growthRates = self.CL.plot_multi(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+            self.GL.drawBarGraph(growthRates, self.coinList)
+
+        self.show()
+
+    def auto_load(self):
+        self.CL.fig.clf()
+        growthRates = self.CL.plot_multi(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        #drawBarGraph(growthRates, self.coinList)
+        self.CL.fig.canvas.draw()
+
+    def listChoice(self, item):
+        self.CL.fig.clf()
+        self.coinListIndex = item
+        self.coinList = self.all_coin_lists[item]
+        # set current coinlist index globally (so child classes can retrieve it)
+        myApp.coinListIndex = self.coinListIndex
+        if len(self.coinList) > 0:
+            growthRates = self.CL.plot_multi(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+            #drawBarGraph(growthRates, self.coinList)
+        self.CL.fig.canvas.draw()
+
+    def timeChoice(self, text):  # convert: "hour... year" to int value as defined in the index of timeWords array
+        self.CL.fig.clf()
+        for i, t in enumerate(timeWords):
+            if t == text:
+                # myApp.timeout = 10000
+                self.CL.fig.clf()
+                self.timeScale = i
+                self.time = timeLimScale[i]
+                self.lim = timeLim[i]
+                growthRates = self.CL.plot_multi(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+                #drawBarGraph(growthRates, self.coinList)
+                self.CL.fig.canvas.draw()
+
+    def currencyChoice(self, text):
+        self.CL.fig.clf()
+        self.currency = text.strip()
+        growthRates = self.CL.plot_multi(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        #drawBarGraph(growthRates, self.coinList)
+        self.CL.fig.canvas.draw()
+        myApp.currency = self.currency
 
     def toggle_timeout(self, state):
         try: # settings mode will have the timer deactivated
@@ -609,6 +521,47 @@ class App (QMainWindow):
 ##  Multi Coin Plot   ##
 ########################
 
+class PlotGrowthGraph (FigureCanvas):
+
+    def __init__ (self, parent):
+
+        self.thisWidth = parent.thisWidth
+        self.thisHeight = parent.thisHeight
+
+        self.fig = plt.figure (figsize=(self.thisWidth / 80, self.thisHeight / 10), dpi=80)
+        self.fig.set_facecolor (CANVAS_BG_COL)
+        FigureCanvas.__init__ (self, self.fig)
+        self.setParent (parent)
+
+    # draws a bar graph given an input of GR (array) and coinList (dictionary)
+    def drawBarGraph (self, GR, coinList):
+
+        ind = [n for n in range (len (coinList))]
+        width = 0.5  # the width of the bars
+
+        axBar = plt.axes ([0.1, 0, 0.8, 0.1])
+        rects = axBar.bar (ind, GR, width, color=list(coinList.values()))
+
+        axBar.set_ylabel ('%')
+        axBar.set_title ('Change in %')
+        axBar.set_xticks (ind)
+        axBar.set_facecolor(PLOT_BG_COL)
+        axBar.yaxis.grid (color=GRID_COL, linestyle='dashed')
+        axBar.set_axisbelow (True)
+
+        xLabels = coinList.keys()
+        axBar.set_xticklabels (xLabels)
+
+        # put the labels on the graphs
+        for rect in rects:
+            height = rect.get_height ()
+            axBar.text (rect.get_x () + rect.get_width () / 2., 1.0 * height, "%.1f" % float (height), ha='center',
+                        va='bottom')
+            # add colors
+        plt.draw ()
+
+
+
 class PlotMultiCoins (FigureCanvas):
 
     def __init__ (self, parent):
@@ -630,97 +583,195 @@ class PlotMultiCoins (FigureCanvas):
 
         self.setParent (parent)
 
-        # load all coins lists from file
-        self.allCoins, self.all_coin_lists_names, self.all_coin_lists, self.all_coin_lists_dict = load_coin_lists ()
-        # current list
-        try:
-            self.coinList = self.all_coin_lists[self.coinListIndex]
-        except:
-            self.coinListIndex = 0
-            self.coinList = self.all_coin_lists[self.coinListIndex]
+    # Main Graph Plotting function
+    def plot_multi(self, coinList, currency, timeScale, time, lim, view):
 
-        # drop down menus
-        self.comboBox1 = QComboBox (self)
-        for list in self.all_coin_lists_names:
-            self.comboBox1.addItem (list)
-        self.comboBox1.move (int(self.thisWidth / 2), 55)
-        self.comboBox1.activated[int].connect (self.listChoice)
-        self.comboBox1.setCurrentIndex (self.coinListIndex)
+        growthRates = []  # will be passed to the batr graph drawing function
 
-        self.comboBox2 = QComboBox (self)
-        for t in timeWords:
-            self.comboBox2.addItem (t)
-        self.comboBox2.move (int(self.thisWidth / 2 + self.thisWidth * 0.09), 55)
-        self.comboBox2.activated[str].connect (self.timeChoice)
-        self.comboBox2.setCurrentIndex (self.timeScale)
+        # get all data with asyncio (blackmagic!)
+        all_price_data = loop.run_until_complete(main(currency, time, lim, coinList))
 
-        self.comboBox3 = QComboBox (self)
-        for curr in currencies:
-            self.comboBox3.addItem (curr+"         ")
-        self.comboBox3.move (int(self.thisWidth / 2 + self.thisWidth * 0.18), 55)
-        self.comboBox3.activated[str].connect (self.currencyChoice)
-        self.comboBox3.setCurrentText (self.currency)
+        # View 0 shows a grid
+        if view == 0:
+            # adjust grid structure depending on number of items to show (hacky but i don't wana mess with matplotlib now)
+            list_len = len(coinList)
+            row = 1
+            col = list_len
+            if list_len > 2:
+                row = 2
+                col = math.ceil(list_len / row)
+            if list_len > 6:
+                row = 3
+                col = math.ceil(list_len / row)
 
-        # create a timer for auto-update of data
-        self.timer0 = QTimer(self)
-        self.timer0.timeout.connect(self.auto_load)
+            pl = 1  # sublots counter
 
-        if parent.autoupdateAct.isChecked():
-            self.timer0.start(self.timeout)
+            for coin in coinList:
+                # draw current sublot
+                p = plt.subplot(row, col, pl)
+                pl += 1
+                # plt.tight_layout()
 
-        # Draw the plots (returns an array of growth rates) and draw a bar graph
-        if len(self.coinList) > 0:
-            growthRates = plot_multi (self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
-            drawBarGraph (growthRates, self.coinList)
-        self.show ()
+                # extract prices for current coin from all_price_data
+                price_data = all_price_data[coin]
 
-    def auto_load (self):
-        self.fig.clf ()
-        growthRates = plot_multi (self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
-        drawBarGraph (growthRates, self.coinList)
-        self.fig.canvas.draw ()
+                prices = []
+                times = []
+                volumes = []
 
-    def listChoice (self, item):
-        self.fig.clf ()
-        self.coinListIndex = item
-        self.coinList = self.all_coin_lists[item]
-        # set current coinlist index globally (so child classes can retrieve it)
-        myApp.coinListIndex = self.coinListIndex
-        if len(self.coinList) > 0:
-            growthRates = plot_multi (self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
-            drawBarGraph (growthRates, self.coinList)
-        self.fig.canvas.draw ()
+                # mambojambo to catch special case: coin == base currency (no data provided by api)
+                # write prices and dates to array avoiding exceptions and ugly graphs further down
+                if currency == coin:
+                    for i in range(lim + 1):
+                        prices.append(1.0)
+                        volumes.append(1.0)
+                        if time == 'minute':
+                            d = dt.datetime.now() - dt.timedelta(minutes=lim)
+                            d = d + dt.timedelta(minutes=i)
+                        elif time == 'hour':
+                            d = dt.datetime.now() - dt.timedelta(hours=lim)
+                            d = d + dt.timedelta(hours=i)
+                        elif time == 'day':
+                            d = dt.datetime.now() - dt.timedelta(days=lim)
+                            d = d + dt.timedelta(days=i)
+                        times.append(d)
+                    # drawing every plot
+                    plt.plot(times, prices, color=coinList[coin])
+                    ax = plt.gca()
+                    ax.set_facecolor(PLOT_BG_COL)
+                    ax.xaxis.grid(color=GRID_COL, linestyle='dashed')
+                    ax.yaxis.grid(color=GRID_COL, linestyle='dashed')
 
-    def timeChoice (self, text):  # convert: "hour... year" to int value as defined in the index of timeWords array
-        self.fig.clf ()
-        for i, t in enumerate(timeWords):
-            if t == text:
-                #myApp.timeout = 10000
-                self.fig.clf ()
-                self.timeScale = i
-                self.time = timeLimScale[i]
-                self.lim = timeLim[i]
-                growthRates = plot_multi (self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
-                drawBarGraph (growthRates, self.coinList)
-                self.fig.canvas.draw ()
+                else:
+                    for data in price_data:
+                        prices.append(data["close"])
+                        times.append(dt.datetime.fromtimestamp(data["time"]))
+                        volumes.append(data["volumefrom"] + (data["volumeto"]))
 
-    def currencyChoice (self, text):
-        self.fig.clf ()
-        self.currency = text.strip()
-        growthRates = plot_multi (self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
-        drawBarGraph (growthRates, self.coinList)
-        self.fig.canvas.draw ()
-        myApp.currency = self.currency
+                    # draw this coins plot
+                    # prices
+                    ax = plt.gca()
+                    # volumes on secondary axis
+                    ax2 = ax.twinx()
 
+                    # correct x-axis ticks and date format
+                    ax.set_facecolor(PLOT_BG_COL)
+                    ax.xaxis.grid(color=GRID_COL, linestyle='dashed')
+                    ax.yaxis.grid(color=GRID_COL, linestyle='dashed')
+                    color = GRID_COL
+                    ax2.tick_params(axis='y', labelcolor=color)
+
+                    ax.plot(times, prices, color=coinList[coin])
+                    ax2.fill_between(times, 0, volumes, facecolor=color, alpha=0.5)
+                    # ax2.set_yticklabels ([])
+                    ax2.axis('off')
+                    format_xaxis(plt, timeScale)
+
+                changePct = calcGrowthRate(prices)
+                growthRates.append(changePct)
+
+                # save timestamp of last data received for later use
+                if len(times) > 0:
+                    last_time = times[len(times) - 1]
+                    # add title and label (price infos: Min, MAX, LAST) to every subplot
+                    plt.title(str(coin))
+                    plt.xlabel('Min: ' + str(min(prices)) + ' - Max: ' + str(max(prices)) + ' - Last: ' + str(
+                        prices[len(prices) - 1]))
+                else:
+                    last_time = dt.datetime.now()
+
+        # View 1 shows a single graph with all coins index and plotted together
+        elif view == 1:
+
+            # create one single subplot
+            p = plt.subplot(111)
+
+            for coin in coinList:
+                # query data for current coin and draw it to subplot
+                prices = []
+                times = []
+
+                # extract prices for current coin from all_price_data
+                price_data = all_price_data[coin]
+
+                # write prices to array  when coin == currency, avoiding exceptions and ugly graphs further down
+                if currency == coin:
+                    for i in range(lim + 1):
+                        prices.append(1.0)
+                        times.append(dt.datetime.now())
+                else:
+                    for data in price_data:
+                        prices.append(data["close"])
+                        times.append(dt.datetime.fromtimestamp(data["time"]))
+
+                drawThisCoin = False
+
+                if len(times) > 0:
+                    last_time = times[len(times) - 1]
+
+                    # index coins to 100 and set a flag to not plot if no initial data available
+                    drawThisCoin = True
+                    base = prices[0]
+                    if base == 0:  # check for bad data
+                        drawThisCoin = False
+                    else:
+                        for i in range(len(prices)):
+                            prices[i] = prices[i] / base * 100
+
+                    # add title
+                    plt.title("Indexed Crypto-Prices")
+                    plt.draw()
+
+                # plot current coin only if data is valid
+                if drawThisCoin == True:
+                    plt.plot(times, prices, color=coinList[coin], label=coin)
+                    changePct = calcGrowthRate(prices)
+                    growthRates.append(changePct)
+                    plt.draw()
+                    plt.legend()
+                else:
+                    growthRates.append(0)
+
+            # correct x-axis ticks and date format
+            format_xaxis(plt, timeScale)
+
+            # custom bg color
+            ax = plt.gca()
+            ax.set_facecolor(PLOT_BG_COL)
+
+            # adjust legend style
+            legend = ax.legend()
+            # Put a nicer background color on the legend.
+            legend.get_frame().set_facecolor(CANVAS_BG_COL)
+
+            # add grid to bg
+            ax.yaxis.grid(color=GRID_COL, linestyle='dashed')
+            ax.xaxis.grid(color=GRID_COL, linestyle='dashed')
+
+        # Title / Info Box
+        plt.axes([0.3, 0.9, 0.5, 0.05])
+        plt.axis('off')
+        t = 'Prices in ' + currency + ' last ' + str(lim) + ' ' + time + 's (' + timeWords[
+            timeScale] + ')'
+        plt.text(0, 1, t, fontproperties='sans', fontsize='x-large')
+
+        # adjust position of subplot-grid on window
+        # plt.subplots_adjust (hspace=0.6, left=0.05, right=0.75, bottom=0.4)
+
+        # print data to console
+        if len(times) > 0:
+            print_data_console(all_price_data, coinList, timeScale, currency, lim, growthRates, last_time)
+
+        # return array with calculated growth rates
+        return growthRates
 
 
 ###############
 #  CUSTOMIZE  #
 ###############
 
-# Custo Widget Class that allows drag & drop between QList Widgets
+# Custom Widget Class that allows drag & drop between QList Widgets
 class ThumbListWidget(QListWidget):
-
 
     def __init__(self, type, parent=None):
         super(ThumbListWidget, self).__init__(parent)
@@ -770,7 +821,7 @@ class PlotCustomize (QMainWindow):
 
         self.coinListIndex = parent.coinListIndex
 
-        # read all coin lists from filee
+        # read all coin lists from file
         self.allCoins, self.all_coin_lists_names, self.all_coin_lists, self.all_coin_lists_dict = load_coin_lists ()
 
         self.coinList = self.all_coin_lists[self.coinListIndex]
@@ -948,15 +999,13 @@ class PlotCustomize (QMainWindow):
                 coin_infos_str += "Supply: " + str (item["ConversionInfo"]["Supply"]) + "\n"
                 coin_infos_str += "Volume 24H: " + str (item["ConversionInfo"]["TotalVolume24H"]) + "\n"
 
-                # TODO: add more stats
-
                 self.coinInfoText.setText (str(coin_infos_str))
 
                 # get coin logo for selected ticker
                 # get image and save to logos folder
                 url_file_name = coin_infos["ImageUrl"]
                 extension = os.path.splitext (url_file_name)[1]
-                if os.path.exists ('logos/' + coin_ticker + extension):
+                if os.path.exists ('images/logos/' + coin_ticker + extension):
                     print (coin_ticker+extension, " exists!")
                 else:
                     print ("Fetching: ", url_file_name)
@@ -964,12 +1013,12 @@ class PlotCustomize (QMainWindow):
                     full_url = url + url_file_name
                     #print(full_url)
                     response = requests.get (full_url)
-                    with open ('logos/' + coin_ticker + extension, 'wb') as out_file:
+                    with open ('images/logos/' + coin_ticker + extension, 'wb') as out_file:
                         out_file.write (response.content)
                     del response
 
                 #load the image
-                pixmap = QPixmap ('logos/' + coin_ticker + extension)
+                pixmap = QPixmap ('images/logos/' + coin_ticker + extension)
                 pixmap_resized = pixmap.scaledToWidth(128)
 
                 #pixmap = QPixmap()
@@ -1151,7 +1200,6 @@ class PlotCustomize (QMainWindow):
 
 
 if __name__ == '__main__':
-    # load coins from data.txt and create lists for different views
     app = QApplication(sys.argv)
     myApp = App()
     sys.exit(app.exec_())
