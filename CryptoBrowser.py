@@ -242,6 +242,10 @@ class MplCanvas(FigureCanvasQTAgg):
 
 
     def draw_plots(self, coin_list, currency, timeScale, time, lim, view):
+
+        # reset array where growth rates are calculated
+        self.growth_rates = []
+
         # get price data for current coinlist
         all_price_data = loop.run_until_complete(main(currency, time, lim, coin_list))
 
@@ -298,22 +302,17 @@ class MplCanvas(FigureCanvasQTAgg):
                     times.append(dt.datetime.fromtimestamp(data["time"]))
                     volumes.append(data["volumefrom"] + (data["volumeto"]) )
 
-                # draw this coins plot
-                # set y-axis
-                p_max = max(prices)
-                p_min = min(prices)
-                sub_plt.set_ylim([p_min, p_max])
-
-                # correct x-axis ticks and date format
+                # format axis
                 sub_plt.set_facecolor(PLOT_BG_COL)
                 sub_plt.xaxis.grid(color=GRID_COL, linestyle='dashed')
                 sub_plt.yaxis.grid(color=GRID_COL, linestyle='dashed')
                 color = GRID_COL
                 sub_plt.tick_params(axis='y', labelcolor=color)
 
+                # draw plot for current coin
                 sub_plt.plot(times, prices, color=coin_list[coin])
 
-                # volumes on secondary axis
+                # draw volumes on secondary axis
                 ax2 = sub_plt.twinx()
                 ax2.fill_between(times, 0, volumes, facecolor=color, alpha=0.5)
                 ax2.axis('off')
@@ -331,13 +330,51 @@ class MplCanvas(FigureCanvasQTAgg):
             else:
                 last_time = dt.datetime.now()
 
-            for line in self.plot_lines:
-                data = random.randint(0, 1000)
-                line.set_ydata(data)
-
             # update figure
             self.fig.canvas.draw()
             #self.fig.canvas.flush_events()
+
+        return self.growth_rates
+
+
+
+class MplGrowthCanvas(FigureCanvasQTAgg):
+
+    def __init__(self, current_coin_list, parent=None, width=5, height=4, dpi=100):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        super(MplGrowthCanvas, self).__init__(self.fig)
+        self.fig.set_facecolor('#595959')
+        self.fig.set_facecolor(CANVAS_BG_COL)
+        self.coin_list = current_coin_list
+
+
+    # draws a bar graph given an input of GR (array) and coinList (dictionary)
+    def draw_graph (self, growth_rates, coinList):
+
+        ind = [n for n in range (len (coinList))]
+        width = 0.5  # the width of the bars
+        axBar = self.fig.add_subplot(111)
+        rects = axBar.bar (ind, growth_rates, width, color=list(coinList.values()))
+
+        axBar.set_ylabel ('%')
+        axBar.set_title ('Change in %')
+        axBar.set_xticks (ind)
+        axBar.set_facecolor(PLOT_BG_COL)
+        axBar.yaxis.grid (color=GRID_COL, linestyle='dashed')
+        axBar.set_axisbelow (True)
+
+        xLabels = coinList.keys()
+        axBar.set_xticklabels (xLabels)
+
+        # put the labels on the graphs
+        for rect in rects:
+            height = rect.get_height ()
+            axBar.text (rect.get_x () + rect.get_width () / 2., 1.0 * height, "%.1f" % float (height), ha='center',
+                        va='bottom')
+
+        # update figure
+        self.fig.canvas.draw()
+
 
 
 ########################
@@ -354,12 +391,14 @@ class MainWindow(QtWidgets.QMainWindow):
         screen_width, screen_height = getScreenRes(self)
 
         self.width = int(screen_width / 2)
-        self.height = int(screen_height / 2)
+        self.height = int(screen_height / 3 * 2)
         self.left = 10
         self.top = 10
 
         self.currency = 'EUR'
         self.coinListIndex = 0
+
+        self.growth_rates = []
 
         self.timeScale = 1
         self.lim = timeLim[self.timeScale]
@@ -503,31 +542,46 @@ class MainWindow(QtWidgets.QMainWindow):
         # Create the maptlotlib FigureCanvas object,
         plot_layout = QVBoxLayout()
         self.CL = MplCanvas(self.coinList, width=5, height=4, dpi=100)
-        self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
         plot_layout.addWidget(self.CL)
         plot_widget = QWidget()
         plot_widget.setContentsMargins(0,0,0,0)
         #plot_widget.setMinimumHeight(400)
         plot_widget.setLayout(plot_layout)
 
+        # Create the maptlotlib FigureCanvas object,
+        growth_plot_layout = QVBoxLayout()
+        self.GL = MplGrowthCanvas(self.coinList, width=5, height=2, dpi=100)
+        self.GL.draw_graph(self.growth_rates, self.coinList)
+        growth_plot_layout.addWidget(self.GL)
+        growth_plot_widget = QWidget()
+        growth_plot_widget.setMaximumHeight(200)
+        growth_plot_widget.setLayout(growth_plot_layout)
+
         page_layout.addWidget(input_widget)
         page_layout.addWidget(plot_widget)
+        page_layout.addWidget(growth_plot_widget)
         self.setCentralWidget(page_widget)
 
         self.show()
 
     def auto_load(self):
         self.CL.fig.clf()
-        self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        self.GL.fig.clf()
+        self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        self.GL.draw_graph(self.growth_rates, self.coinList)
 
     def listChoice(self, item):
         self.CL.fig.clf()
+        self.GL.fig.clf()
         self.coinListIndex = item
         self.coinList = self.all_coin_lists[item]
-        self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        self.GL.draw_graph(self.growth_rates, self.coinList)
 
     def timeChoice(self, text):  # convert: "hour... year" to int value as defined in the index of timeWords array
         self.CL.fig.clf()
+        self.GL.fig.clf()
         for i, t in enumerate(timeWords):
             if t == text:
                 # myApp.timeout = 10000
@@ -535,12 +589,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.timeScale = i
                 self.time = timeLimScale[i]
                 self.lim = timeLim[i]
-                self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+                self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+                self.GL.draw_graph(self.growth_rates, self.coinList)
 
     def currencyChoice(self, text):
         self.CL.fig.clf()
+        self.GL.fig.clf()
         self.currency = text.strip()
-        self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        self.GL.draw_graph(self.growth_rates, self.coinList)
 
     def toggle_timeout(self, state):
         try: # settings mode will have the timer deactivated
