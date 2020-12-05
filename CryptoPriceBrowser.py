@@ -318,13 +318,12 @@ class App (QMainWindow):
         # MAIN PLOT
         # create the the matplot canvas instance
         self.CL = PlotMultiCoins (self)
-        self.CL.move (0, 50)  # make space for menu and buttons
+        #self.CL.move (0, 50)  # make space for menu and buttons
 
         plot_layout = QHBoxLayout()
         plot_layout.addWidget(self.CL)
+        plot_layout.setContentsMargins(100, 0, 0, 0)
         plot_widget = QWidget()
-        plot_widget.setContentsMargins(0,0,0,0)
-        plot_widget.setMaximumHeight(500)
         plot_widget.setLayout(plot_layout)
 
         # GROWTH GRAPH
@@ -343,13 +342,13 @@ class App (QMainWindow):
         ddmenus_widget = QWidget()
         ddmenus_widget.setLayout(ddmenus_layout)
         #ddmenus_widget.setFixedHeight(50)
-        ddmenus_widget.setMinimumSize(400, 50)
+        #ddmenus_widget.setMinimumSize(400, 50)
         #ddmenus_widget.setMaximumSize(600, 50)
         #ddmenus_widget.setFixedWidth(300)
 
         page_layout.addWidget(ddmenus_widget)
-        page_layout.addWidget(plot_widget)
         page_layout.addWidget(graph_widget)
+        page_layout.addWidget(plot_widget)
         self.setCentralWidget(page_widget)
 
         # load all coins lists from file
@@ -360,8 +359,6 @@ class App (QMainWindow):
         except:
             self.coinListIndex = 0
             self.coinList = self.all_coin_lists[self.coinListIndex]
-
-        # Spacer
 
         # drop down menus
         self.comboBox1 = QComboBox(self)
@@ -513,7 +510,7 @@ class App (QMainWindow):
         self.CL.move (0, 65)
 
     def dispAbout (self):
-        mes = 'Author: Fernando Garcia Winterling <html><br>GitHub: <a href = "https://github.com/ferbcn/CryptoPriceGUI">CryptoPriceGUI</a> <br>Data API: <a href = "https://min-api.cryptocompare.com/">CryptoCompare API</a></html>'
+        mes = 'Author: Fernando Garcia Winterling <html><br>GitHub: <a href = ""</a> <br>Data API: <a href = "https://min-api.cryptocompare.com/">CryptoCompare API</a></html>'
         QMessageBox.question (self, 'GUI Message', mes, QMessageBox.Ok, QMessageBox.Ok)
 
 
@@ -528,9 +525,11 @@ class PlotGrowthGraph (FigureCanvas):
         self.thisWidth = parent.thisWidth
         self.thisHeight = parent.thisHeight
 
-        self.fig = plt.figure (figsize=(self.thisWidth / 80, self.thisHeight / 10), dpi=80)
-        self.fig.set_facecolor (CANVAS_BG_COL)
+        #self.fig = plt.figure (figsize=(self.thisWidth / 80, self.thisHeight / 10), dpi=80, facecolor=CANVAS_BG_COL)
+        self.fig = plt.figure(figsize=(self.thisWidth / 80, self.thisHeight / 80), dpi=80, facecolor=CANVAS_BG_COL)
+        super(PlotGrowthGraph, self).__init__(self.fig)
         FigureCanvas.__init__ (self, self.fig)
+
         self.setParent (parent)
 
     # draws a bar graph given an input of GR (array) and coinList (dictionary)
@@ -539,7 +538,8 @@ class PlotGrowthGraph (FigureCanvas):
         ind = [n for n in range (len (coinList))]
         width = 0.5  # the width of the bars
 
-        axBar = plt.axes ([0.1, 0, 0.8, 0.1])
+        axBar = self.fig.add_subplot(111)
+        axBar = plt.axes ([0.1, -0.1, 0.8, 0.1])
         rects = axBar.bar (ind, GR, width, color=list(coinList.values()))
 
         axBar.set_ylabel ('%')
@@ -561,7 +561,6 @@ class PlotGrowthGraph (FigureCanvas):
         plt.draw ()
 
 
-
 class PlotMultiCoins (FigureCanvas):
 
     def __init__ (self, parent):
@@ -576,9 +575,11 @@ class PlotMultiCoins (FigureCanvas):
         self.timeout = parent.timeout
         self.view = parent.view
 
-        self.fig = plt.figure (figsize=(self.thisWidth / 80, self.thisHeight / 80), dpi=80)
-        self.fig.set_facecolor (CANVAS_BG_COL)
+        #self.fig = plt.figure ()
+        #self.fig.set_facecolor (CANVAS_BG_COL)
 
+        self.fig = plt.figure(figsize=(self.thisWidth / 80, self.thisHeight / 80), dpi=80)
+        super(PlotMultiCoins, self).__init__(self.fig)
         FigureCanvas.__init__ (self, self.fig)
 
         self.setParent (parent)
@@ -608,9 +609,10 @@ class PlotMultiCoins (FigureCanvas):
 
             for coin in coinList:
                 # draw current sublot
+                self.fig.add_subplot(row, col, pl)
                 p = plt.subplot(row, col, pl)
                 pl += 1
-                # plt.tight_layout()
+                plt.tight_layout()
 
                 # extract prices for current coin from all_price_data
                 price_data = all_price_data[coin]
