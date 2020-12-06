@@ -21,6 +21,7 @@ from PyQt5.QtGui import QIcon, QPixmap, QImage, QColor
 from PyQt5.QtCore import QTimer
 from PyQt5 import QtWidgets, QtCore
 
+from list_widget import ThumbListWidget
 
 ########################
 ##  Global variables  ##
@@ -34,10 +35,12 @@ timeLimScale = ['minute', 'minute', 'hour', 'hour', 'day', 'day', 'day']
 PRICE_URL = "https://min-api.cryptocompare.com/data/histo"
 
 # custom colors
-CANVAS_BG_COL = "#595959"
-#CANVAS_BG_COL = "gainsboro"
-PLOT_BG_COL = "#333333"
-#PLOT_BG_COL = "lightgrey"
+BG_COL_D = "#595959"
+FACE_COL_D = "#444444"
+
+BG_COL_L = "gainsboro"
+FACE_COL_L = "lightgrey"
+
 TITLE_COL = "k"
 GRID_COL = 'grey'
 
@@ -213,13 +216,18 @@ class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, current_coin_list, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         super(MplCanvas, self).__init__(self.fig)
-        self.fig.set_facecolor(CANVAS_BG_COL)
+        self.bg_color = BG_COL_D
+        self.plot_color = FACE_COL_D
+
+        self.fig.set_facecolor(self.bg_color)
 
         self.coin_list = current_coin_list
 
         self.plot_lines = []
 
         self.sub_plots = []
+
+
 
         self.growth_rates = []
 
@@ -237,8 +245,10 @@ class MplCanvas(FigureCanvasQTAgg):
             pl = 1  # sublots counter
         else:
             sub_plt = self.fig.add_subplot(111)
+            self.sub_plots.append(sub_plt)
+            sub_plt.xaxis.grid(color=GRID_COL, linestyle='dashed')
+            sub_plt.yaxis.grid(color=GRID_COL, linestyle='dashed')
             sub_plt.set_title("Indexed Crypto Prices", color='#000000', size='medium')
-            sub_plt.set(xlabel='', facecolor='#595959')
             sub_plt.xaxis.label.set_fontsize('x-small')
             sub_plt.tick_params(axis='both', which='major', labelsize=6, labelcolor='#000000')
 
@@ -249,7 +259,6 @@ class MplCanvas(FigureCanvasQTAgg):
                 self.sub_plots.append(sub_plt)
                 sub_plt.set_title(coin, color='#000000', size='small')
                 pl += 1
-                sub_plt.set(xlabel='', facecolor='#595959')
                 sub_plt.xaxis.label.set_fontsize('x-small')
                 sub_plt.tick_params(axis='both', which='major', labelsize=6, labelcolor='#000000')
 
@@ -283,14 +292,15 @@ class MplCanvas(FigureCanvasQTAgg):
                         prices[i] = prices[i] / base * 100
 
 
-                sub_plt.set_facecolor(PLOT_BG_COL)
+                sub_plt.set_facecolor(self.plot_color)
                 sub_plt.xaxis.grid(color=GRID_COL, linestyle='dashed')
                 sub_plt.yaxis.grid(color=GRID_COL, linestyle='dashed')
 
-                # drawing every plot
+                # drawing the plot
                 sub_plt.plot(times, prices, color=coin_list[coin])
-                sub_plt.set_facecolor(PLOT_BG_COL)
+                sub_plt.set_facecolor(self.plot_color)
 
+            # NORMAL CASE
             else:
                 for i, data in enumerate (price_data):
                     prices.append(data["close"])
@@ -306,17 +316,14 @@ class MplCanvas(FigureCanvasQTAgg):
                 # draw plot for current coin
                 sub_plt.plot(times, prices, color=coin_list[coin])
 
-                # format axis
-                color = '#000000'
-
-                sub_plt.set_facecolor(PLOT_BG_COL)
+                sub_plt.set_facecolor(self.plot_color)
                 sub_plt.xaxis.grid(color=GRID_COL, linestyle='dashed')
                 sub_plt.yaxis.grid(color=GRID_COL, linestyle='dashed')
-                sub_plt.tick_params(axis='y', labelcolor=color)
+                #sub_plt.tick_params(axis='y', labelcolor=color)
 
                 # draw volumes on secondary axis
                 ax2 = sub_plt.twinx()
-                ax2.fill_between(times, 0, volumes, facecolor=color, alpha=0.5)
+                ax2.fill_between(times, 0, volumes, facecolor='#000000', alpha=0.5)
                 ax2.axis('off')
                 format_xaxis(sub_plt, timeScale)
 
@@ -335,7 +342,6 @@ class MplCanvas(FigureCanvasQTAgg):
             # update figure
             self.fig.tight_layout(h_pad=1)
             self.fig.canvas.draw()
-            #self.fig.canvas.flush_events()
 
         return self.growth_rates
 
@@ -345,7 +351,11 @@ class MplGrowthCanvas(FigureCanvasQTAgg):
     def __init__(self, current_coin_list, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         super(MplGrowthCanvas, self).__init__(self.fig)
-        self.fig.set_facecolor(CANVAS_BG_COL)
+
+        self.bg_color = BG_COL_D
+        self.plot_color = FACE_COL_D
+
+        self.fig.set_facecolor(self.bg_color)
         self.coin_list = current_coin_list
 
     # draws a bar graph given an input of GR (array) and coinList (dictionary)
@@ -356,7 +366,7 @@ class MplGrowthCanvas(FigureCanvasQTAgg):
         self.axBar = self.fig.add_subplot(111)
         rects = self.axBar.bar (ind, growth_rates, width, color=list(coinList.values()))
 
-        self.axBar.set_facecolor(PLOT_BG_COL)
+        self.axBar.set_facecolor(self.plot_color)
         self.axBar.set_axisbelow (True)
         self.axBar.set_ylabel ('%', color='#000000', size='x-small')
         self.axBar.set_title('Change in %', color='#000000', size='small')
@@ -376,357 +386,25 @@ class MplGrowthCanvas(FigureCanvasQTAgg):
         self.fig.canvas.draw()
 
 
-########################
-##### MAIN CLASS #######
-########################
-
-class MainWindow(QtWidgets.QMainWindow):
-
-    def __init__(self, *args, **kwargs):
-        super(MainWindow, self).__init__(*args, **kwargs)
-        self.title = 'Crypto Browser'
-        self.setWindowTitle(self.title)
-        self.setStyleSheet("background-color: #595959")
-
-        screen_width, screen_height = getScreenRes(self)
-
-        self.width = int(screen_width / 2)
-        self.height = int(screen_height / 3 * 2)
-        self.left = 10
-        self.top = 10
-
-        self.currency = 'EUR'
-        self.coinListIndex = 0
-
-        self.growth_rates = []
-
-        self.timeScale = 1
-        self.lim = timeLim[self.timeScale]
-        self.time = timeLimScale[self.timeScale]
-        self.view = 0
-
-        self.screen_mode = 1 #light = 0, dark = 1
-
-        self.timeout = TIMEOUT
-
-        self.initUI()
-
-
-    def initUI(self):
-
-        # Window Geometry
-        #self.setStyleSheet("background-color: #595959")
-        self.setGeometry(0, 0, self.width, self.height)
-        # self.setStyleSheet("background-color: gainsboro")
-        self.setAutoFillBackground(True)
-        p = self.palette()
-        p.setColor(self.backgroundRole(), QColor(CANVAS_BG_COL))
-        self.setPalette(p)
-
-        # self.center ()
-        self.setWindowTitle('Crypto Price Browser')
-        self.setWindowOpacity(1)
-
-        # MENU
-        # define exit action of menu
-        exitAct = QAction(QIcon('images/exit.png'), '&Exit', self)
-        exitAct.setShortcut('Ctrl+Q')
-        exitAct.setStatusTip('Exit application')
-        exitAct.triggered.connect(qApp.quit)
-
-        toggleViewAct = QAction(QIcon('images/refresh.png'), '&Toggle View', self)
-        toggleViewAct.setShortcut('Ctrl+T')
-        toggleViewAct.setStatusTip('toggle view')
-        toggleViewAct.triggered.connect(self.toggleView)
-
-        loadMultiAct = QAction(QIcon('images/graph.png'), '&Multi Coins Panel', self)
-        loadMultiAct.setShortcut('Ctrl+M')
-        loadMultiAct.setStatusTip('Plot Multi Coins Panel')
-        loadMultiAct.triggered.connect(self.loadMulti)
-
-        customizeAct = QAction(QIcon('images/settings.png'), '&Customize Coins', self)
-        customizeAct.setShortcut('Ctrl+C')
-        customizeAct.setStatusTip('Settings')
-        customizeAct.triggered.connect(self.switch_color_mode)
-
-        loadManyAct = QAction(QIcon('images/graph.png'), '&Indexed Coins Plot', self)
-        loadManyAct.setShortcut('Ctrl+I')
-        loadManyAct.setStatusTip('Plot Many Coins')
-        loadManyAct.triggered.connect(self.loadMany)
-
-        aboutAct = QAction(QIcon('images/about.png'), '&About', self)
-        aboutAct.setStatusTip('About')
-        aboutAct.triggered.connect(self.dispAbout)
-
-        self.autoupdateAct = QAction(QIcon('images/refresh.png'), '&Auto Update', self, checkable=True)
-        self.autoupdateAct.setStatusTip('Auto Update')
-        self.autoupdateAct.setChecked(True)
-        self.autoupdateAct.triggered.connect(self.toggle_timeout)
-
-        # MENUBAR
-        menubar = self.menuBar()
-        menubar.setNativeMenuBar(False)
-
-        fileMenu = menubar.addMenu('&File')
-        fileMenu.addAction(exitAct)
-
-        viewMenu = menubar.addMenu('View')
-        viewMenu.addAction(loadMultiAct)
-        viewMenu.addAction(loadManyAct)
-
-        settingsMenu = menubar.addMenu('&Settings')
-        settingsMenu.addAction(customizeAct)
-        settingsMenu.addAction(self.autoupdateAct)
-
-        aboutMenu = menubar.addMenu('&About')
-        aboutMenu.addAction(aboutAct)
-
-        # TOOLBAR: define which actions will be shown in the toolbar
-        self.toolbar = self.addToolBar('Control')
-        self.toolbar.setStyleSheet(
-            "QToolButton:hover {background-color: #444444} QToolBar {background: #595959; border: none}")
-        self.toolbar.addAction(exitAct)
-        self.toolbar.addAction(toggleViewAct)
-        self.toolbar.addAction(customizeAct)
-
-        page_layout = QVBoxLayout()
-        page_widget = QWidget()
-        page_widget.setLayout(page_layout)
-
-        input_layout = QHBoxLayout()
-        input_widget = QWidget()
-        #input_widget.setStyleSheet("background-color: gainsboro")
-        input_widget.setMaximumHeight(40)
-        #input_widget.setContentsMargins(100, 0, 100, 0)
-        input_widget.setLayout(input_layout)
-
-        # load all coins lists from file
-        self.allCoins, self.all_coin_lists_names, self.all_coin_lists, self.all_coin_lists_dict = load_coin_lists()
-        # current list
-        try:
-            self.coinList = self.all_coin_lists[self.coinListIndex]
-        except:
-            self.coinListIndex = 0
-            self.coinList = self.all_coin_lists[self.coinListIndex]
-
-        # drop down menus
-        self.comboBox1 = QComboBox(self)
-        for list in self.all_coin_lists_names:
-            self.comboBox1.addItem(list)
-        self.comboBox1.activated[int].connect(self.listChoice)
-        self.comboBox1.setCurrentIndex(self.coinListIndex)
-        self.comboBox1.setMaximumWidth(200)
-        input_layout.addWidget(self.comboBox1)
-
-        self.comboBox2 = QComboBox(self)
-        for t in timeWords:
-            self.comboBox2.addItem(t)
-        self.comboBox2.activated[str].connect(self.timeChoice)
-        self.comboBox2.setCurrentIndex(self.timeScale)
-        self.comboBox2.setMaximumWidth(200)
-        input_layout.addWidget(self.comboBox2)
-
-        self.comboBox3 = QComboBox(self)
-        for curr in currencies:
-            self.comboBox3.addItem(curr + "         ")
-        self.comboBox3.activated[str].connect(self.currencyChoice)
-        self.comboBox3.setCurrentText(self.currency)
-        self.comboBox3.setMaximumWidth(200)
-        input_layout.addWidget(self.comboBox3)
-
-        # create a timer for auto-update of data
-        self.timer0 = QTimer(self)
-        self.timer0.timeout.connect(self.reload_graphs)
-
-        if self.autoupdateAct.isChecked():
-            self.timer0.start(self.timeout)
-
-        # Create the Crypto Prices Plot in maptlotlib FigureCanvas object
-        plot_layout = QVBoxLayout()
-        self.CL = MplCanvas(self.coinList, width=5, height=4, dpi=100)
-        self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
-        plot_layout.addWidget(self.CL)
-        plot_widget = QWidget()
-        plot_widget.setContentsMargins(0,0,0,0)
-        #plot_widget.setMinimumHeight(400)
-        plot_widget.setLayout(plot_layout)
-
-        # Create the Crypto price Growth Bar Chart in maptlotlib FigureCanvas object
-        growth_plot_layout = QVBoxLayout()
-        self.GL = MplGrowthCanvas(self.coinList, width=5, height=2, dpi=100)
-        self.GL.draw_graph(self.growth_rates, self.coinList)
-        growth_plot_layout.addWidget(self.GL)
-        growth_plot_widget = QWidget()
-        growth_plot_widget.setMaximumHeight(220)
-        growth_plot_widget.setLayout(growth_plot_layout)
-
-        page_layout.addWidget(input_widget)
-        page_layout.addWidget(plot_widget)
-        page_layout.addWidget(growth_plot_widget)
-        self.setCentralWidget(page_widget)
-
-        self.show()
-
-    def reload_graphs(self):
-        self.CL.fig.clf()
-        self.GL.fig.clf()
-        self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
-        self.GL.draw_graph(self.growth_rates, self.coinList)
-
-    def listChoice(self, item):
-        self.coinListIndex = item
-        self.coinList = self.all_coin_lists[item]
-        self.reload_graphs()
-
-    def timeChoice(self, text):  # convert: "hour... year" to int value as defined in the index of timeWords array
-        for i, t in enumerate(timeWords):
-            if t == text:
-                # myApp.timeout = 10000
-                self.timeScale = i
-                self.time = timeLimScale[i]
-                self.lim = timeLim[i]
-                self.reload_graphs()
-
-    def currencyChoice(self, text):
-        self.currency = text.strip()
-        self.reload_graphs()
-
-    def toggle_timeout(self, state):
-        try: # settings mode will have the timer deactivated
-            if not state:
-                self.timer0.stop ()
-            else:
-                self.timer0.start (self.timeout)
-        except Exception as e:
-            print(e)
-
-    def center (self):
-        qr = self.frameGeometry ()
-        cp = QDesktopWidget ().availableGeometry ().center ()
-        qr.moveCenter (cp)
-        self.move (qr.topLeft ())
-
-    def closeEvent (self, event):
-        reply = QMessageBox.question (self, 'Message',
-                                      "Are you sure to quit?", QMessageBox.Yes |
-                                      QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            event.accept ()
-        else:
-            event.ignore ()
-
-    def loadMulti (self):
-        self.view = 0
-        self.reload_graphs()
-
-    def loadMany (self):
-        self.view = 1
-        self.reload_graphs()
-
-    def toggleView (self):
-        if self.view == 0:
-            self.view = 1
-        else:
-            self.view = 0
-        self.reload_graphs()
-
-
-    def loadFresh (self):
-        pass
-
-    def switch_color_mode (self):
-        if self.screen_mode == 1:
-            self.setStyleSheet("background-color: lightgrey")
-            self.CL.fig.set_facecolor('lightgrey')
-            self.GL.fig.set_facecolor('lightgrey')
-            self.screen_mode = 0
-            self.toolbar.setStyleSheet(
-                "QToolButton:hover {background-color: darkgrey} QToolBar {background: lightgrey; border: none}")
-            self.GL.axBar.set_facecolor('white')
-            for plot in self.CL.sub_plots:
-                plot.set_facecolor('white')
-        else:
-            self.setStyleSheet("background-color: #595959")
-            self.CL.fig.set_facecolor('#595959')
-            self.GL.fig.set_facecolor('#595959')
-            self.screen_mode = 1
-            self.toolbar.setStyleSheet(
-                "QToolButton:hover {background-color: #444444} QToolBar {background: #595959; border: none}")
-            self.GL.axBar.set_facecolor('#333333')
-            for plot in self.CL.sub_plots:
-                plot.set_facecolor('#333333')
-        self.CL.fig.canvas.draw()
-        self.GL.fig.canvas.draw()
-
-    def dispAbout (self):
-        mes = 'Author: Fernando Garcia Winterling <html><br>GitHub: <a href = ""</a> <br>Data API: <a href = "https://min-api.cryptocompare.com/">CryptoCompare API</a></html>'
-        QMessageBox.question (self, 'GUI Message', mes, QMessageBox.Ok, QMessageBox.Ok)
-
-
-
 ###############
 #  CUSTOMIZE  #
 ###############
 
-# Custom Widget Class that allows drag & drop between QList Widgets
-class ThumbListWidget(QListWidget):
-
-    def __init__(self, type, parent=None):
-        super(ThumbListWidget, self).__init__(parent)
-        self.setIconSize(QtCore.QSize(124, 124))
-        self.setDragDropMode(QtWidgets.QAbstractItemView.DragDrop)
-        self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.accept()
-        else:
-            super(ThumbListWidget, self).dragEnterEvent(event)
-
-    def dragMoveEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.setDropAction(QtCore.Qt.CopyAction)
-            event.accept()
-        else:
-            super(ThumbListWidget, self).dragMoveEvent(event)
-
-    def dropEvent(self, event):
-        if event.mimeData().hasUrls():
-            event.setDropAction(QtCore.Qt.CopyAction)
-            event.accept()
-            links = []
-            for url in event.mimeData().urls():
-                links.append(str(url.toLocalFile()))
-        else:
-            event.setDropAction(QtCore.Qt.MoveAction)
-            super(ThumbListWidget, self).dropEvent(event)
-        self.setFocus()
-
-
 class PlotCustomize (QMainWindow):
 
-    def __init__ (self, parent):
+    def __init__ (self, coinListIndex):
 
         super ().__init__ ()
         QMainWindow.__init__ (self)
 
-        self.setMinimumSize(1000, 700)
-
-        self.setParent (parent)
-
-        self.thisHeight = parent.thisHeight
-        self.thisWidth = parent.thisWidth
-
-        self.coinListIndex = parent.coinListIndex
-
+        self.coinListIndex = coinListIndex
         # read all coin lists from file
         self.allCoins, self.all_coin_lists_names, self.all_coin_lists, self.all_coin_lists_dict = load_coin_lists ()
-
         self.coinList = self.all_coin_lists[self.coinListIndex]
 
         # get con infos top 150 by volume
         self.all_coin_infos = get_top_coins(150)
-        #print(self.all_coin_infos)
+        print(self.all_coin_infos)
 
         self.initUI ()
 
@@ -769,7 +447,6 @@ class PlotCustomize (QMainWindow):
         listSeleBox.addWidget (addListButton)
         listSeleBox.addWidget (removeListButton)
         listSeleBox.addWidget (mySpace)
-
 
         # create two QList items (horizontal)
         listsTextBox = QHBoxLayout ()
@@ -1096,6 +773,311 @@ class PlotCustomize (QMainWindow):
             QMessageBox.question (self, 'GUI Message', "Current list saved! ", QMessageBox.Ok)
             self.allCoins, self.all_coin_lists_names, self.all_coin_lists, self.all_coin_lists_dict = load_coin_lists ()
 
+
+
+########################
+##### MAIN CLASS #######
+########################
+
+class MainWindow(QtWidgets.QMainWindow):
+
+    def __init__(self, *args, **kwargs):
+        super(MainWindow, self).__init__(*args, **kwargs)
+        self.title = 'Crypto Browser'
+        self.setWindowTitle(self.title)
+        self.setStyleSheet("background-color: #595959")
+
+        screen_width, screen_height = getScreenRes(self)
+
+        self.width = int(screen_width / 2)
+        self.height = int(screen_height / 3 * 2)
+        self.left = 10
+        self.top = 10
+
+        self.currency = 'EUR'
+        self.coinListIndex = 0
+
+        self.growth_rates = []
+
+        self.timeScale = 1
+        self.lim = timeLim[self.timeScale]
+        self.time = timeLimScale[self.timeScale]
+        self.view = 0
+
+        self.screen_mode = 1 #light = 0, dark = 1
+
+        self.timeout = TIMEOUT
+
+        self.canvas_color = BG_COL_D
+
+        self.initUI()
+
+
+    def initUI(self):
+
+        # Window Geometry
+        #self.setStyleSheet("background-color: #595959")
+        self.setGeometry(0, 0, self.width, self.height)
+        # self.setStyleSheet("background-color: gainsboro")
+        self.setAutoFillBackground(True)
+        p = self.palette()
+        p.setColor(self.backgroundRole(), QColor(self.canvas_color))
+        self.setPalette(p)
+
+        # self.center ()
+        self.setWindowTitle('Crypto Price Browser')
+        self.setWindowOpacity(1)
+
+        # MENU
+        # define exit action of menu
+        exitAct = QAction(QIcon('images/exit.png'), '&Exit', self)
+        exitAct.setShortcut('Ctrl+Q')
+        exitAct.setStatusTip('Exit application')
+        exitAct.triggered.connect(qApp.quit)
+
+        toggleViewAct = QAction(QIcon('images/refresh.png'), '&Toggle View', self)
+        toggleViewAct.setShortcut('Ctrl+T')
+        toggleViewAct.setStatusTip('toggle view')
+        toggleViewAct.triggered.connect(self.toggleView)
+
+        toggledarklight = QAction(QIcon('images/bulb.png'), '&Toggle Mode', self)
+        toggledarklight.setShortcut('Ctrl+D')
+        toggledarklight.setStatusTip('toggle light/dark mode')
+        toggledarklight.triggered.connect(self.switch_color_mode)
+
+        loadMultiAct = QAction(QIcon('images/graph.png'), '&Multi Coins Panel', self)
+        loadMultiAct.setShortcut('Ctrl+M')
+        loadMultiAct.setStatusTip('Plot Multi Coins Panel')
+        loadMultiAct.triggered.connect(self.loadMulti)
+
+        customizeAct = QAction(QIcon('images/settings.png'), '&Customize Coins', self)
+        customizeAct.setShortcut('Ctrl+C')
+        customizeAct.setStatusTip('Settings')
+        customizeAct.triggered.connect(self.load_customizer)
+
+        loadManyAct = QAction(QIcon('images/graph.png'), '&Indexed Coins Plot', self)
+        loadManyAct.setShortcut('Ctrl+I')
+        loadManyAct.setStatusTip('Plot Many Coins')
+        loadManyAct.triggered.connect(self.loadMany)
+
+        aboutAct = QAction(QIcon('images/about.png'), '&About', self)
+        aboutAct.setStatusTip('About')
+        aboutAct.triggered.connect(self.dispAbout)
+
+        self.autoupdateAct = QAction(QIcon('images/refresh.png'), '&Auto Update', self, checkable=True)
+        self.autoupdateAct.setStatusTip('Auto Update')
+        self.autoupdateAct.setChecked(True)
+        self.autoupdateAct.triggered.connect(self.toggle_timeout)
+
+        # MENUBAR
+        menubar = self.menuBar()
+        menubar.setNativeMenuBar(False)
+
+        fileMenu = menubar.addMenu('&File')
+        fileMenu.addAction(exitAct)
+
+        viewMenu = menubar.addMenu('View')
+        viewMenu.addAction(loadMultiAct)
+        viewMenu.addAction(loadManyAct)
+
+        settingsMenu = menubar.addMenu('&Settings')
+        settingsMenu.addAction(customizeAct)
+        settingsMenu.addAction(self.autoupdateAct)
+        settingsMenu.addAction(toggledarklight)
+
+        aboutMenu = menubar.addMenu('&About')
+        aboutMenu.addAction(aboutAct)
+
+        # TOOLBAR: define which actions will be shown in the toolbar
+        self.toolbar = self.addToolBar('Control')
+        self.toolbar.setStyleSheet(
+            "QToolButton:hover {background-color: #444444} QToolBar {background: #595959; border: none}")
+        self.toolbar.addAction(exitAct)
+        self.toolbar.addAction(toggleViewAct)
+        self.toolbar.addAction(customizeAct)
+        self.toolbar.addAction(toggledarklight)
+
+        page_layout = QVBoxLayout()
+        page_widget = QWidget()
+        page_widget.setLayout(page_layout)
+
+        input_layout = QHBoxLayout()
+        input_widget = QWidget()
+        #input_widget.setStyleSheet("background-color: gainsboro")
+        input_widget.setMaximumHeight(40)
+        #input_widget.setContentsMargins(100, 0, 100, 0)
+        input_widget.setLayout(input_layout)
+
+        # load all coins lists from file
+        self.allCoins, self.all_coin_lists_names, self.all_coin_lists, self.all_coin_lists_dict = load_coin_lists()
+        # current list
+        try:
+            self.coinList = self.all_coin_lists[self.coinListIndex]
+        except:
+            self.coinListIndex = 0
+            self.coinList = self.all_coin_lists[self.coinListIndex]
+
+        # drop down menus
+        self.comboBox1 = QComboBox(self)
+        for list in self.all_coin_lists_names:
+            self.comboBox1.addItem(list)
+        self.comboBox1.activated[int].connect(self.listChoice)
+        self.comboBox1.setCurrentIndex(self.coinListIndex)
+        self.comboBox1.setMaximumWidth(200)
+        input_layout.addWidget(self.comboBox1)
+
+        self.comboBox2 = QComboBox(self)
+        for t in timeWords:
+            self.comboBox2.addItem(t)
+        self.comboBox2.activated[str].connect(self.timeChoice)
+        self.comboBox2.setCurrentIndex(self.timeScale)
+        self.comboBox2.setMaximumWidth(200)
+        input_layout.addWidget(self.comboBox2)
+
+        self.comboBox3 = QComboBox(self)
+        for curr in currencies:
+            self.comboBox3.addItem(curr + "         ")
+        self.comboBox3.activated[str].connect(self.currencyChoice)
+        self.comboBox3.setCurrentText(self.currency)
+        self.comboBox3.setMaximumWidth(200)
+        input_layout.addWidget(self.comboBox3)
+
+        # create a timer for auto-update of data
+        self.timer0 = QTimer(self)
+        self.timer0.timeout.connect(self.reload_graphs)
+
+        if self.autoupdateAct.isChecked():
+            self.timer0.start(self.timeout)
+
+        # Create the Crypto Prices Plot in maptlotlib FigureCanvas object
+        plot_layout = QVBoxLayout()
+        self.CL = MplCanvas(self.coinList, width=5, height=4, dpi=100)
+        self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        plot_layout.addWidget(self.CL)
+        plot_widget = QWidget()
+        plot_widget.setContentsMargins(0,0,0,0)
+        #plot_widget.setMinimumHeight(400)
+        plot_widget.setLayout(plot_layout)
+
+        # Create the Crypto price Growth Bar Chart in maptlotlib FigureCanvas object
+        growth_plot_layout = QVBoxLayout()
+        self.GL = MplGrowthCanvas(self.coinList, width=5, height=2, dpi=100)
+        self.GL.draw_graph(self.growth_rates, self.coinList)
+        growth_plot_layout.addWidget(self.GL)
+        growth_plot_widget = QWidget()
+        growth_plot_widget.setMaximumHeight(220)
+        growth_plot_widget.setLayout(growth_plot_layout)
+
+        page_layout.addWidget(input_widget)
+        page_layout.addWidget(plot_widget)
+        page_layout.addWidget(growth_plot_widget)
+        self.setCentralWidget(page_widget)
+
+        self.show()
+
+    def reload_graphs(self):
+        self.CL.fig.clf()
+        self.GL.fig.clf()
+        self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
+        self.GL.draw_graph(self.growth_rates, self.coinList)
+
+    def listChoice(self, item):
+        self.coinListIndex = item
+        self.coinList = self.all_coin_lists[item]
+        self.reload_graphs()
+
+    def timeChoice(self, text):  # convert: "hour... year" to int value as defined in the index of timeWords array
+        for i, t in enumerate(timeWords):
+            if t == text:
+                # myApp.timeout = 10000
+                self.timeScale = i
+                self.time = timeLimScale[i]
+                self.lim = timeLim[i]
+                self.reload_graphs()
+
+    def currencyChoice(self, text):
+        self.currency = text.strip()
+        self.reload_graphs()
+
+    def toggle_timeout(self, state):
+        try: # settings mode will have the timer deactivated
+            if not state:
+                self.timer0.stop ()
+            else:
+                self.timer0.start (self.timeout)
+        except Exception as e:
+            print(e)
+
+    def center (self):
+        qr = self.frameGeometry ()
+        cp = QDesktopWidget ().availableGeometry ().center ()
+        qr.moveCenter (cp)
+        self.move (qr.topLeft ())
+
+    def closeEvent (self, event):
+        reply = QMessageBox.question (self, 'Message',
+                                      "Are you sure to quit?", QMessageBox.Yes |
+                                      QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            event.accept ()
+        else:
+            event.ignore ()
+
+    def loadMulti (self):
+        self.view = 0
+        self.reload_graphs()
+
+    def loadMany (self):
+        self.view = 1
+        self.reload_graphs()
+
+    def toggleView (self):
+        if self.view == 0:
+            self.view = 1
+        else:
+            self.view = 0
+        self.reload_graphs()
+
+    def load_customizer(self):
+        self.CL = PlotCustomize(self.coinListIndex)
+
+
+    def loadFresh (self):
+        pass
+
+    def switch_color_mode (self):
+        # switch to LIGHT MODE
+        if self.screen_mode == 1:
+            self.setStyleSheet("background-color: gainsboro")
+            self.CL.fig.set_facecolor('gainsboro')
+            self.GL.fig.set_facecolor('gainsboro')
+            self.screen_mode = 0
+            self.toolbar.setStyleSheet(
+                "QToolButton:hover {background-color: darkgrey} QToolBar {background: gainsboro; border: none}")
+            self.GL.axBar.set_facecolor('lightgrey')
+            for plot in self.CL.sub_plots:
+                plot.set_facecolor('lightgrey')
+            self.CL.plot_color = 'lightgrey'
+            self.GL.plot_color = 'lightgrey'
+        # switch to DARK MODE
+        else:
+            self.setStyleSheet("background-color: #595959")
+            self.CL.fig.set_facecolor('#595959') #background color
+            self.GL.fig.set_facecolor('#595959')
+            self.screen_mode = 1
+            self.toolbar.setStyleSheet(
+                "QToolButton:hover {background-color: #444444} QToolBar {background: #595959; border: none}")
+            self.GL.axBar.set_facecolor('#333333')
+            for plot in self.CL.sub_plots:
+                plot.set_facecolor('#333333')
+            self.CL.plot_color = '#333333'
+            self.GL.plot_color = '#333333'
+        self.CL.fig.canvas.draw()
+        self.GL.fig.canvas.draw()
+
+    def dispAbout (self):
+        mes = 'Author: Fernando Garcia Winterling <html><br>GitHub: <a href = ""</a> <br>Data API: <a href = "https://min-api.cryptocompare.com/">CryptoCompare API</a></html>'
+        QMessageBox.question (self, 'GUI Message', mes, QMessageBox.Ok, QMessageBox.Ok)
 
 
 app = QtWidgets.QApplication(sys.argv)
