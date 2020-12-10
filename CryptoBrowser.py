@@ -101,7 +101,7 @@ def getTickerPrices(ticker='BTC', currency='USD', time='minute', lim=60):
 def get_top_coins(top=10):
     # build URL and call api
     URL = 'https://min-api.cryptocompare.com/data/top/totalvol?limit=' + str(top) + '&tsym=BTC'
-    print(f'Fetching URL: {URL}')
+    #print(f'Fetching URL: {URL}')
     try:
         r = requests.get(URL)
         tickerData = r.json()
@@ -246,6 +246,8 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
         # get price data for current coinlist
         all_price_data = loop.run_until_complete(main(currency, time, lim, coin_list))
 
+        agregated_volumes = [0 for _ in range(lim+1)]
+
         if view == 0:
             row, col = make_grid(coin_list)
             pl = 1  # sublots counter
@@ -259,6 +261,9 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
             sub_plt.tick_params(axis='both', which='major', labelsize=6, labelcolor='#000000')
 
         for coin in coin_list:
+            # flag cases with wrong or missing data
+            draw_current_coin = True
+
             # draw current sublot
             if view == 0:
                 sub_plt = self.fig.add_subplot(row, col, pl)
@@ -305,21 +310,31 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
                 sub_plt.plot(times, prices, color=coin_list[coin])
                 sub_plt.set_facecolor(self.plot_color)
 
-            # NORMAL CASE
+            # Normal case: Coin != base currency
             else:
                 for i, data in enumerate(price_data):
                     prices.append(data["close"])
                     times.append(dt.datetime.fromtimestamp(data["time"]))
-                    volumes.append(data["volumefrom"] + (data["volumeto"]))
+                    coin_volume = data["volumefrom"] + data["volumeto"]
+                    volumes.append(coin_volume)
+                    try:
+                        agregated_volumes[i] += coin_volume
+                    # first coin (agregated volumes still empty)
+                    except Exception as e:
+                        agregated_volumes.append(coin_volume)
 
-                # if view == 1 (indexed modes, we need to index all prices)
+                # if view == 1 (indexed mode, we need to index all prices)
                 if view == 1:
-                    base = prices[0]
-                    for i in range(len(prices)):
-                        prices[i] = prices[i] / base * 100
+                    try:
+                        base = prices[0]
+                        for i in range(len(prices)):
+                            prices[i] = prices[i] / base * 100
+                    except ZeroDivisionError:
+                        draw_current_coin = False
 
                 # draw plot for current coin
-                sub_plt.plot(times, prices, color=coin_list[coin])
+                if draw_current_coin:
+                    sub_plt.plot(times, prices, color=coin_list[coin])
 
                 sub_plt.set_facecolor(self.plot_color)
                 sub_plt.xaxis.grid(color=GRID_COL, linestyle='dashed')
@@ -327,26 +342,28 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
                 # sub_plt.tick_params(axis='y', labelcolor=color)
 
                 # draw volumes on secondary axis
-                ax2 = sub_plt.twinx()
-                ax2.fill_between(times, 0, volumes, facecolor='#000000', alpha=0.5)
-                ax2.axis('off')
-                format_xaxis(sub_plt, timeScale)
+                if view == 0:
+                    ax2 = sub_plt.twinx()
+                    ax2.fill_between(times, 0, volumes, facecolor='#000000', alpha=0.3)
+                    ax2.axis('off')
 
+            #calculate growth rates mode0 and mode1
             changePct = calcGrowthRate(prices)
             self.growth_rates.append(changePct)
 
-            # save timestamp of last data received for later use
-            if len(times) > 0:
-                last_time = times[len(times) - 1]
-                # add title and label (price infos: Min, MAX, LAST) to every subplot
-                # sub_plt.set_title(str(coin))
-                # sub_plt.xlabel('Min: ' + str(min(prices)) + ' - Max: ' + str(max(prices)) + ' - Last: ' + str(prices[len(prices) - 1]))
-            else:
-                last_time = dt.datetime.now()
+        # END OF COIN LOOP
+        # format time axis
+        for sp in self.sub_plots:
+            format_xaxis(sp, timeScale)
 
-            # update figure
-            self.fig.tight_layout(h_pad=1)
-            self.fig.canvas.draw()
+        if view == 1:
+            ax2 = sub_plt.twinx()
+            ax2.fill_between(times, 0, agregated_volumes, facecolor='#000000', alpha=0.3)
+            ax2.axis('off')
+
+        # update figure
+        self.fig.tight_layout(h_pad=1)
+        self.fig.canvas.draw()
 
         return self.growth_rates
 
@@ -847,12 +864,12 @@ class MainWindow(QtWidgets.QMainWindow):
         exitAct.setStatusTip('Exit application')
         exitAct.triggered.connect(qApp.quit)
 
-        toggleViewAct = QAction(QIcon('images/chart.png'), '&Toggle View', self)
+        toggleViewAct = QAction(QIcon('images/graph.png'), '&Toggle Price Chart View', self)
         toggleViewAct.setShortcut('Ctrl+T')
         toggleViewAct.setStatusTip('toggle view')
         toggleViewAct.triggered.connect(self.toggleView)
 
-        toggledarklight = QAction(QIcon('images/bulb.png'), '&Toggle Mode', self)
+        toggledarklight = QAction(QIcon('images/bulb.png'), '&Toggle Dark/Light Mode', self)
         toggledarklight.setShortcut('Ctrl+D')
         toggledarklight.setStatusTip('toggle light/dark mode')
         toggledarklight.triggered.connect(self.switch_color_mode)
@@ -862,7 +879,7 @@ class MainWindow(QtWidgets.QMainWindow):
         loadMultiAct.setStatusTip('Plot Multi Coins Panel')
         loadMultiAct.triggered.connect(self.loadMulti)
 
-        customizeAct = QAction(QIcon('images/settings.png'), '&Customize Coins', self)
+        customizeAct = QAction(QIcon('images/settings.png'), '&Customize Coin-Lists', self)
         customizeAct.setShortcut('Ctrl+C')
         customizeAct.setStatusTip('Settings')
         customizeAct.triggered.connect(self.load_customizer)
@@ -1007,8 +1024,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.GL.fig.clf()
         except AttributeError:
             pass
-        self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim,
-                                               self.view)
+        self.growth_rates = self.CL.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.view)
         self.GL.draw_graph(self.growth_rates, self.coinList)
 
     def listChoice(self, item):
