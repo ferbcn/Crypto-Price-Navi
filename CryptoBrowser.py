@@ -155,7 +155,6 @@ def format_xaxis(plt, timeScale):
 ### ASYNCIO MAGIC for simulataneous http requests ###
 loop = asyncio.get_event_loop()
 
-
 async def main(currency, time, lim, coinList):
     price_data = []
     price_data_dict = dict.fromkeys(coinList.keys())
@@ -222,19 +221,20 @@ def make_grid(current_coin_list):
 
 class MplPriceChartsCanvas(FigureCanvasQTAgg):
 
-    def __init__(self, current_coin_list, width=5, height=4, dpi=100):
+    def __init__(self, current_coin_list, dark_mode=True, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         super(MplPriceChartsCanvas, self).__init__(self.fig)
+
+        self.dark_mode = dark_mode
         self.bg_color = BG_COL_D
         self.plot_color = FACE_COL_D
+        self.coin_list = current_coin_list
 
         self.fig.set_facecolor(self.bg_color)
 
-        self.coin_list = current_coin_list
-
         self.plot_lines = []
-
         self.growth_rates = []
+
 
     def draw_plots(self, coin_list, currency, timeScale, time, lim, view):
 
@@ -367,15 +367,30 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
 
         return self.growth_rates
 
+    def switch_color_mode(self):
+        if self.dark_mode:
+            self.fig.set_facecolor('gainsboro')
+            for plot in self.sub_plots:
+                plot.set_facecolor('lightgrey')
+            self.plot_color = 'lightgrey'
+            self.dark_mode = False
+        else:
+            self.fig.set_facecolor('#595959')
+            for plot in self.sub_plots:
+                plot.set_facecolor('#333333')
+            self.plot_color = '#333333'
+            self.dark_mode = True
+
 
 class MplGrowthCanvas(FigureCanvasQTAgg):
 
-    def __init__(self, current_coin_list, width=5, height=4, dpi=100):
+    def __init__(self, current_coin_list, dark_mode=True, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         super(MplGrowthCanvas, self).__init__(self.fig)
 
         self.bg_color = BG_COL_D
         self.plot_color = FACE_COL_D
+        self.dark_mode = dark_mode
 
         self.fig.set_facecolor(self.bg_color)
         self.coin_list = current_coin_list
@@ -405,6 +420,18 @@ class MplGrowthCanvas(FigureCanvasQTAgg):
                             va='bottom', size='small')
         # update figure
         self.fig.canvas.draw()
+
+    def switch_color_mode(self):
+        if self.dark_mode:
+            self.fig.set_facecolor('gainsboro')
+            self.axBar.set_facecolor('lightgrey')
+            self.plot_color = 'lightgrey'
+            self.dark_mode = False
+        else:
+            self.fig.set_facecolor('#595959')
+            self.axBar.set_facecolor('#333333')
+            self.plot_color = '#333333'
+            self.dark_mode = True
 
 
 ###############
@@ -494,11 +521,11 @@ class ListCustomizer(QWidget):
         self.listWidgetB.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         # self.listWidgetB.setAlternatingRowColors (True)
         if self.dark_mode:
-            self.listWidgetA.setStyleSheet("""QListWidget{background: #595959;}""")  # arrrgg no variabl!!!!???
-            self.listWidgetB.setStyleSheet("""QListWidget{background: #595959;}""")  # arrrgg no variabl!!!!???
+            self.listWidgetA.setStyleSheet("""QListWidget{background: #595959;}""")
+            self.listWidgetB.setStyleSheet("""QListWidget{background: #595959;}""")
         else:
-            self.listWidgetA.setStyleSheet("""QListWidget{background: gainsboro;}""")  # arrrgg no variabl!!!!???
-            self.listWidgetB.setStyleSheet("""QListWidget{background: gainsboro;}""")  # arrrgg no variabl!!!!???
+            self.listWidgetA.setStyleSheet("""QListWidget{background: gainsboro;}""")
+            self.listWidgetB.setStyleSheet("""QListWidget{background: gainsboro;}""")
 
         listsBox.addWidget(self.listWidgetA)
         listsBox.addWidget(self.listWidgetB)
@@ -806,6 +833,16 @@ class ListCustomizer(QWidget):
             QMessageBox.question(self, 'GUI Message', "Current list saved! ", QMessageBox.Ok)
             self.allCoins, self.all_coin_lists_names, self.all_coin_lists, self.all_coin_lists_dict = load_coin_lists()
 
+    def switch_color_mode(self):
+        if self.dark_mode:
+            self.listWidgetA.setStyleSheet("""QListWidget{background: gainsboro;}""")
+            self.listWidgetB.setStyleSheet("""QListWidget{background: gainsboro;}""")
+            self.dark_mode = False
+        else:
+            self.listWidgetA.setStyleSheet("""QListWidget{background: #595959;}""")
+            self.listWidgetB.setStyleSheet("""QListWidget{background: #595959;}""")
+            self.dark_mode = True
+
 
 ########################
 ##### MAIN CLASS #######
@@ -1104,15 +1141,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.dark_mode == 1:
             self.dark_mode = False
             self.setStyleSheet("background-color: gainsboro")
-            self.CL.fig.set_facecolor('gainsboro')
-            self.GL.fig.set_facecolor('gainsboro')
             self.toolbar.setStyleSheet(
                 "QToolButton:hover {background-color: darkgrey} QToolBar {background: gainsboro; border: none}")
-            self.GL.axBar.set_facecolor('lightgrey')
-            for plot in self.CL.sub_plots:
-                plot.set_facecolor('lightgrey')
-            self.CL.plot_color = 'lightgrey'
-            self.GL.plot_color = 'lightgrey'
             self.menubar.setStyleSheet("color: #333333")
             self.comboBox1.setStyleSheet(
                 "QComboBox{color: #333333; padding: 0px 18px 0px 3px;} QComboBox:!editable:off, QComboBox::drop-down:editable {background:lightgrey}")
@@ -1122,17 +1152,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 "QComboBox{color: #333333; padding: 0px 18px 0px 3px;} QComboBox:!editable:off, QComboBox::drop-down:editable {background:lightgrey}")
         # switch to DARK MODE
         else:
-            self.dark_mode = True
             self.setStyleSheet("background-color: #595959")
-            self.CL.fig.set_facecolor('#595959')
-            self.GL.fig.set_facecolor('#595959')
             self.toolbar.setStyleSheet(
                 "QToolButton:hover {background-color: #444444} QToolBar {background: #595959; border: none}")
-            self.GL.axBar.set_facecolor('#333333')
-            for plot in self.CL.sub_plots:
-                plot.set_facecolor('#333333')
-            self.CL.plot_color = '#333333'
-            self.GL.plot_color = '#333333'
             self.menubar.setStyleSheet("color: lightgrey")
             self.comboBox1.setStyleSheet(
                 "QComboBox{color: lightgrey; padding: 0px 18px 0px 3px;} QComboBox:!editable:off, QComboBox::drop-down:editable {background:#333333}")
@@ -1140,6 +1162,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 "QComboBox{color: lightgrey; padding: 0px 18px 0px 3px;} QComboBox:!editable:off, QComboBox::drop-down:editable {background:#333333}")
             self.comboBox3.setStyleSheet(
                 "QComboBox{color: lightgrey; padding: 0px 18px 0px 3px;} QComboBox:!editable:off, QComboBox::drop-down:editable {background:#333333}")
+            self.dark_mode = True
+
+        # if editor mode is open switch its color mode
+        if self.show_coinlist_editor:
+            self.CustomView.switch_color_mode()
+
+        # will always be called
+        self.CL.switch_color_mode()
+        self.GL.switch_color_mode()
+
+        #
         self.CL.fig.canvas.draw()
         self.GL.fig.canvas.draw()
 
