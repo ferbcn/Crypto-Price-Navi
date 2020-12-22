@@ -6,6 +6,7 @@ Retrieves prices from the CryptoCompare API: https://min-api.cryptocompare.com/ 
 **Motivation:**
 
 **Screenshots:**
+![alt text](screenshots/crypto_gui_screenshot.png)
 
 **Dependencies:**
 - requests 
