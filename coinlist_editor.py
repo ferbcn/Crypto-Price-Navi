@@ -195,6 +195,9 @@ class CoinListEditor(QWidget):
         self.coinInfoText.setText("")
         self.coin_logo = QLabel()
         self.coin_logo.setMaximumSize(200, 200)
+        self.coin_logo.setMinimumSize(140,140)
+        # create empty Pixmap
+        # self.coin_logo.setPixmap(empty_pixmap)
         coinInfoBox.addWidget(mySpace)
         coinInfoBox.addWidget(self.coin_logo)
         coinInfoBox.addWidget(mySpace)
@@ -459,10 +462,10 @@ class CoinListEditor(QWidget):
 
     def set_color_mode(self, dark_mode):
         if dark_mode:
-            self.listWidgetA.setStyleSheet("""QListWidget{background: #595959;}""")
-            self.listWidgetB.setStyleSheet("""QListWidget{background: #595959;}""")
+            self.listWidgetA.setStyleSheet("""QListWidget{background: #595959;} QListWidget::item:selected { background: #444444}""")
+            self.listWidgetB.setStyleSheet("""QListWidget{background: #595959;} QListWidget::item:selected { background: #444444}""")
             self.dark_mode = True
         else:
-            self.listWidgetA.setStyleSheet("""QListWidget{background: gainsboro;}""")
-            self.listWidgetB.setStyleSheet("""QListWidget{background: gainsboro;}""")
+            self.listWidgetA.setStyleSheet("""QListWidget{background: gainsboro;} QListWidget::item:selected { background: lightgrey}""")
+            self.listWidgetB.setStyleSheet("""QListWidget{background: gainsboro;} QListWidget::item:selected { background: lightgrey}""")
             self.dark_mode = False

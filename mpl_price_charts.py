@@ -1,11 +1,11 @@
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 import math
+from numpy.random import rand
 import datetime as dt
 
 import matplotlib.dates as mdates
 import matplotlib._color_data as mcd
-
 
 # custom colors
 # dark mode
@@ -77,10 +77,8 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
             sub_plt = self.fig.add_subplot(row, col, pl)
             self.sub_plots.append(sub_plt)
             sub_plt.set_title(coin, color='#000000', size='small')
-            pl += 1
-            sub_plt.xaxis.label.set_fontsize('x-small')
             sub_plt.tick_params(axis='both', which='major', labelsize=6, labelcolor='#000000')
-
+            pl += 1
             # extract prices for current coin from all_price_data
             price_data = all_price_data[coin]
             prices = []
@@ -133,6 +131,10 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
                 sub_plt.xaxis.grid(color=GRID_COL, linestyle='dashed')
                 sub_plt.yaxis.grid(color=GRID_COL, linestyle='dashed')
                 # sub_plt.tick_params(axis='y', labelcolor=color)
+
+                sub_plt.xaxis.label.set_fontsize('small')
+                price_info = 'Min: {} - Max: {} - Last: {}'.format(min(prices), max(prices), prices[lim-1])
+                sub_plt.set(xlabel=price_info, facecolor='#3a3a3a')
 
                 # draw volumes on secondary axis
                 ax2 = sub_plt.twinx()
@@ -231,11 +233,12 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
         sub_plt.set_facecolor(self.face_color)
         sub_plt.xaxis.grid(color=GRID_COL, linestyle='dashed')
         sub_plt.yaxis.grid(color=GRID_COL, linestyle='dashed')
-        self.format_xaxis(sub_plt, timeScale)
 
         ax2 = sub_plt.twinx()
         ax2.fill_between(times, 0, agregated_volumes, facecolor='#000000', alpha=0.3)
         ax2.axis('off')
+
+        self.format_xaxis(sub_plt, timeScale)
 
         # update figure
         self.fig.tight_layout(h_pad=1)
@@ -272,13 +275,11 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
             for plot in self.sub_plots:
                 plot.set_facecolor(FACE_COL_D)
             self.face_color = FACE_COL_D
-            self.dark_mode = True
         else:
             self.fig.set_facecolor(BG_COL_L)
             for plot in self.sub_plots:
                 plot.set_facecolor(FACE_COL_L)
             self.face_color = FACE_COL_L
-            self.dark_mode = False
 
 
 class MplGrowthCanvas(FigureCanvasQTAgg):
@@ -303,8 +304,8 @@ class MplGrowthCanvas(FigureCanvasQTAgg):
 
         self.axBar.set_facecolor(self.face_color)
         self.axBar.set_axisbelow(True)
-        self.axBar.set_ylabel('%', color='#000000', size='x-small')
-        self.axBar.set_title('Change in %', color='#000000', size='small')
+        self.axBar.set_ylabel('Growth in %', color='#000000', size='x-small')
+        #self.axBar.set_title('Change in %', color='#000000', size='small')
         self.axBar.set_xticks(ind)
         self.axBar.tick_params(axis='both', which='major', labelsize=6, labelcolor='#000000')
         self.axBar.yaxis.grid(color=GRID_COL, linestyle='dashed')
@@ -324,37 +325,50 @@ class MplGrowthCanvas(FigureCanvasQTAgg):
         if dark_mode:
             self.fig.set_facecolor('#595959')
             self.axBar.set_facecolor('#333333')
-            self.face_color = '#333333'
-            self.dark_mode = True
         else:
             self.fig.set_facecolor('gainsboro')
             self.axBar.set_facecolor('lightgrey')
-            self.face_color = 'lightgrey'
-            self.dark_mode = False
-
+        self.fig.canvas.draw()
 
 class MplCorrelationCanvas(FigureCanvasQTAgg):
 
     def __init__(self, current_coin_list, dark_mode=True, width=5, height=4, dpi=100):
-        self.fig = Figure(figsize=(width, height), dpi=dpi)
-        super(MplCorrelationCanvas, self).__init__(self.fig)
-
         self.bg_color = BG_COL_D
         self.face_color = FACE_COL_D
         self.dark_mode = dark_mode
+
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        super(MplCorrelationCanvas, self).__init__(self.fig)
 
         self.fig.set_facecolor(self.bg_color)
         self.coin_list = current_coin_list
 
     # draws a bar graph given an input of GR (array) and coinList (dictionary)
-    def draw_correlations(self, coinList):
-        ind = [n for n in range(len(coinList))]
+    def draw_graph(self, coinList, price_data, dark_mode=True):
+
+        self.ax = self.fig.add_subplot(111)
+        for coin in coinList:
+            n = 100
+            x, y = rand(2, n)
+            scale = 200.0 * rand(n)
+            color = coinList[coin]
+            self.ax.scatter(x, y, c=color, s=scale, label=coin,
+                       alpha=0.3, edgecolors='none')
+
+        self.set_color_mode(dark_mode)
+        self.ax.grid(True)
+        # self.show()
         # update figure
-        self.fig.canvas.draw()
+        # self.fig.canvas.draw()
 
     def set_color_mode(self, dark_mode):
         if dark_mode:
-            self.dark_mode = True
+            self.fig.set_facecolor('#595959')
+            self.ax.set_facecolor('#333333')
+            self.ax.legend(facecolor=BG_COL_D)
         else:
-            self.dark_mode = False
+            self.fig.set_facecolor('gainsboro')
+            self.ax.set_facecolor('lightgrey')
+            self.ax.legend(facecolor=BG_COL_L)
+        self.fig.canvas.draw()
 
