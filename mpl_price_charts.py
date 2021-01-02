@@ -1,11 +1,13 @@
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 import math
-from numpy.random import rand
+import numpy as np
 import datetime as dt
+from scipy.stats import linregress
 
 import matplotlib.dates as mdates
-import matplotlib._color_data as mcd
+import matplotlib.artist as marts
+from matplotlib.colors import LinearSegmentedColormap
 
 # custom colors
 # dark mode
@@ -133,7 +135,10 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
                 # sub_plt.tick_params(axis='y', labelcolor=color)
 
                 sub_plt.xaxis.label.set_fontsize('small')
-                price_info = 'Min: {} - Max: {} - Last: {}'.format(min(prices), max(prices), prices[lim-1])
+                try:
+                    price_info = 'Min: {} - Max: {} - Last: {}'.format(min(prices), max(prices), prices[lim-1])
+                except ValueError:
+                    price_info = 'n/a'
                 sub_plt.set(xlabel=price_info, facecolor='#3a3a3a')
 
                 # draw volumes on secondary axis
@@ -217,7 +222,10 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
 
                 # indexed mode -> we need to index all prices
                 try:
-                    base = prices[0]
+                    try:
+                        base = prices[0]
+                    except IndexError:
+                        base = 0
                     for i in range(len(prices)):
                         prices[i] = prices[i] / base * 100
                 except ZeroDivisionError:
@@ -234,9 +242,10 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
         sub_plt.xaxis.grid(color=GRID_COL, linestyle='dashed')
         sub_plt.yaxis.grid(color=GRID_COL, linestyle='dashed')
 
-        ax2 = sub_plt.twinx()
-        ax2.fill_between(times, 0, agregated_volumes, facecolor='#000000', alpha=0.3)
-        ax2.axis('off')
+        if draw_current_coin:
+            ax2 = sub_plt.twinx()
+            ax2.fill_between(times, 0, agregated_volumes, facecolor='#000000', alpha=0.3)
+            ax2.axis('off')
 
         self.format_xaxis(sub_plt, timeScale)
 
@@ -346,20 +355,68 @@ class MplCorrelationCanvas(FigureCanvasQTAgg):
     # draws a bar graph given an input of GR (array) and coinList (dictionary)
     def draw_graph(self, coinList, price_data, dark_mode=True):
 
-        self.ax = self.fig.add_subplot(111)
+        priceDict = {}
         for coin in coinList:
-            n = 100
-            x, y = rand(2, n)
-            scale = 200.0 * rand(n)
-            color = coinList[coin]
-            self.ax.scatter(x, y, c=color, s=scale, label=coin,
-                       alpha=0.3, edgecolors='none')
+            prices = []
+            for data in price_data[coin]:
+                prices.append(data["close"])
+            priceDict[coin] = prices
+        l = len(coinList)
+        corrMatrix = [[0 for x in range(l)] for y in range(l)]
+        for i, coin1 in enumerate(priceDict):
+            for p, coin2 in enumerate(priceDict):
+                if p > i:
+                    rvalue = 0.0
+                elif coin1 == coin2:
+                    rvalue = 1.0
+                else:
+                    a = priceDict[coin1]
+                    b = priceDict[coin2]
+                    try:
+                        lr = linregress(a, b)
+                        rvalue = lr.rvalue
+                    except ValueError:
+                        rvalue = 0
+                corrMatrix[i][p] = rvalue
 
-        self.set_color_mode(dark_mode)
-        self.ax.grid(True)
-        # self.show()
-        # update figure
-        # self.fig.canvas.draw()
+        # plot correlation heatmap
+        self.ax = self.fig.add_subplot(111)
+        self.ax.set_title('Crypto Correlations Matrix', size='medium')
+
+        # convert tu numpy array
+        numpy_correlations = np.array(corrMatrix)
+
+        # coin labels
+        labels = coinList.keys()
+        # We want to show all ticks...
+        self.ax.set_xticks(np.arange(len(labels)))
+        self.ax.set_yticks(np.arange(len(labels)))
+        # ... and label them with the respective list entries
+        self.ax.set_xticklabels(labels)
+        self.ax.set_yticklabels(labels)
+
+        # Rotate the tick labels and set their alignment.
+        marts.setp(self.ax.get_xticklabels(), rotation=40, ha="right", rotation_mode="anchor")
+
+        # custom colormap
+        colors = [(1, 0.1, 0.1), (0.2, 0.2, 0.2), (1, 165/255, 0)]
+        colors = [(255/255,133/255,133/255), (186/255,0,0), (255/255,71/255,71/255)]
+        colormap = LinearSegmentedColormap.from_list('cmap_name', colors)
+
+        # Loop over data dimensions and create text annotations.
+        for i in range(len(labels)):
+            for j in range(len(labels)):
+                # set cell text color to give it readable contrast
+                if abs(numpy_correlations[i, j]) > 0.5:
+                    text_col = FACE_COL_D
+                else:
+                    text_col = BG_COL_L
+                if i >= j:
+                    self.ax.text(j, i, '%.2f' % numpy_correlations[i, j], ha="center", va="center", color=text_col, size='small')
+        self.ax.imshow(numpy_correlations, alpha=1, cmap=colormap)
+        #self.fig.canvas.draw()
+        #self.fig.subplots_adjust(left=0.1, bottom=0.3)
+
 
     def set_color_mode(self, dark_mode):
         if dark_mode:

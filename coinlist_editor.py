@@ -236,11 +236,17 @@ class CoinListEditor(QWidget):
 
         self.setLayout(mainVerticalLayout)
 
+        #self.listWidgetA.setCurrentItem("BTC")
+        self.update_coin_infos()
+
         self.show()
 
-    def update_coin_infos(self, arg):
+    def update_coin_infos(self):
         # update coin infos
-        coin_ticker = self.listWidgetA.currentItem().text()
+        try:
+            coin_ticker = self.listWidgetA.currentItem().text()
+        except AttributeError:
+            coin_ticker = 'BTC'
         coin_infos_str = ""
         for item in self.all_coin_infos:
             if item["CoinInfo"]["Name"] == coin_ticker:
@@ -338,6 +344,7 @@ class CoinListEditor(QWidget):
         self.update_infos()
 
     def load_coins_web(self):
+        self.listWidgetA.clear()
         data = get_top_coins(100)
         new_ticker_list = []
         for i in range(len(data)):
@@ -346,8 +353,8 @@ class CoinListEditor(QWidget):
             all_items_in_list = []
             for index in range(self.listWidgetA.count()):
                 all_items_in_list.append(self.listWidgetA.item(index).text())
-            if not ticker in all_items_in_list:
-                self.listWidgetA.addItem(ticker)
+            #if not ticker in all_items_in_list:
+            self.listWidgetA.addItem(ticker)
         self.update_infos()
 
     def add_list(self):

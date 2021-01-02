@@ -182,7 +182,7 @@ class CryptoGui(QtWidgets.QMainWindow):
 
         # Window Geometry
         # self.setStyleSheet("background-color: gainsboro")
-        self.setGeometry(self.width*2, 0, self.width, self.height) #width*2 > window will be displayed on secondary monitor
+        self.setGeometry(self.width, 0, self.width, self.height) #width*2 > window will be displayed on secondary monitor
         self.setAutoFillBackground(True)
         p = self.palette()
         p.setColor(self.backgroundRole(), QColor(self.canvas_color))
@@ -413,6 +413,7 @@ class CryptoGui(QtWidgets.QMainWindow):
             self.CoinListEditorWidget.setContentsMargins(100, 0, 100, 0)
             self.page_layout.addWidget(self.CoinListEditorWidget)
             self.show_coinlist_editor_view = True
+            self.CoinListEditorWidget.set_color_mode(self.dark_mode)
         self.show()
 
 
@@ -447,6 +448,7 @@ class CryptoGui(QtWidgets.QMainWindow):
         else:
             self.PriceChartCanvas.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim,
                                              self.all_price_data)
+        self.PriceChartCanvas.set_color_mode(self.dark_mode)
 
     def switch_color_mode(self):
         if self.dark_mode:
