@@ -136,7 +136,7 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
 
                 sub_plt.xaxis.label.set_fontsize('small')
                 try:
-                    price_info = 'Min: {} - Max: {} - Last: {}'.format(min(prices), max(prices), prices[lim-1])
+                    price_info = 'Low: {} - High: {} - Last: {}'.format(min(prices), max(prices), prices[lim-1])
                 except ValueError:
                     price_info = 'n/a'
                 sub_plt.set(xlabel=price_info, facecolor='#3a3a3a')
@@ -352,9 +352,8 @@ class MplCorrelationCanvas(FigureCanvasQTAgg):
         self.fig.set_facecolor(self.bg_color)
         self.coin_list = current_coin_list
 
-    # draws a bar graph given an input of GR (array) and coinList (dictionary)
+    # draws a correlation matrix
     def draw_graph(self, coinList, price_data, dark_mode=True):
-
         priceDict = {}
         for coin in coinList:
             prices = []
@@ -399,9 +398,10 @@ class MplCorrelationCanvas(FigureCanvasQTAgg):
         marts.setp(self.ax.get_xticklabels(), rotation=40, ha="right", rotation_mode="anchor")
 
         # custom colormap
-        colors = [(1, 0.1, 0.1), (0.2, 0.2, 0.2), (1, 165/255, 0)]
-        colors = [(255/255,133/255,133/255), (186/255,0,0), (255/255,71/255,71/255)]
-        colormap = LinearSegmentedColormap.from_list('cmap_name', colors)
+        colors = [(1, 0.1, 0.1), (0.2, 0.2, 0.2), (1, 0.1, 0.1)]
+        colors = [(0, (0.5, 0.5, 0.5)), (1, (1, 0.1, 0.1))]
+        #colors = [(255/255,133/255,133/255), (186/255,0,0), (255/255,71/255,71/255)]
+        colormap = LinearSegmentedColormap.from_list('cmap_name', colors, 256, 1)
 
         # Loop over data dimensions and create text annotations.
         for i in range(len(labels)):

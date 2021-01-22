@@ -4,21 +4,15 @@ import datetime as dt
 import json
 import asyncio
 import concurrent.futures
-import math
-import os
 
-from PyQt5.QtWidgets import QMainWindow, QAction, qApp, QPushButton, QApplication, QMessageBox, QDesktopWidget, \
-    QSizePolicy, QLineEdit, QComboBox, QLabel, QHBoxLayout, QVBoxLayout, QListWidget, QListWidgetItem, QSplitter, \
-    QWidget, QInputDialog, QScrollArea
-from PyQt5.QtGui import QIcon, QPixmap, QImage, QColor
+from PyQt5.QtWidgets import QAction, qApp, QMessageBox, QDesktopWidget, QVBoxLayout, QWidget
+from PyQt5.QtGui import QIcon, QColor
 from PyQt5.QtCore import QTimer
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets
 
 from options_menu import ParameterSelector
-from mpl_price_charts import MplPriceChartsCanvas
-from mpl_price_charts import MplGrowthCanvas
+from mpl_price_charts import MplPriceChartsCanvas, MplGrowthCanvas, MplCorrelationCanvas
 from coinlist_editor import CoinListEditor
-from mpl_price_charts import MplCorrelationCanvas
 
 
 ########################
@@ -46,7 +40,6 @@ GRID_COL = 'grey'
 # auto refresh timeout
 UPDATE_TIMEOUT = 300000 #5 min
 
-
 ########################
 ##  Helper functions  ##
 ########################
@@ -56,6 +49,7 @@ def getScreenRes():
     width, height = screen_resolution.width(), screen_resolution.height()
     return width, height
 
+
 # load all coin list from config files
 def load_coin_lists_from_file():
     # load all coins lists
@@ -63,14 +57,12 @@ def load_coin_lists_from_file():
         allCoins = json.load(json_file)
     # load coinList names and data
     all_coin_lists = []
-    all_coin_lists_dict = {}
     try:
         with open('coin_lists.txt') as json_file:
             clist_data = json.load(json_file)
-            all_coin_lists_dict = clist_data  # needed for customization in settings mode
         for listname in clist_data:
             all_coin_lists.append(clist_data[listname])
-        print(f"{get_time_now()}: coin config files loaded!")
+        print(f"{get_time_now()}: config files loaded")
     except Exception:
         print(f"{get_time_now()}: ERROR loading config files!")
     return allCoins, all_coin_lists

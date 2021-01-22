@@ -228,10 +228,11 @@ class CoinListEditor(QWidget):
 
         # connect list widgets
         self.listWidgetA.itemDoubleClicked.connect(self.add_coin_color_to_list)
-        self.listWidgetA.itemChanged.connect(self.update_infos)
-        self.listWidgetB.itemChanged.connect(self.update_infos)
         self.listWidgetA.itemClicked.connect(self.update_coin_infos)
+        self.listWidgetA.itemChanged.connect(self.update_coin_infos)
+        self.listWidgetB.itemChanged.connect(self.update_coin_infos)
 
+        # select current list to be edited
         self.listChoice(self.coinListIndex)
 
         self.setLayout(mainVerticalLayout)

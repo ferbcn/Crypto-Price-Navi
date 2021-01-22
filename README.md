@@ -20,5 +20,10 @@ Retrieves prices from the CryptoCompare API: https://min-api.cryptocompare.com/ 
 - matplotlib
 - numpy
 
+<br>
+**TO-DO:**
 
-
+*Avoid Duplications in:* 
+- config files: unify one file
+- color definitions: unify, pass as parameter
+- 
