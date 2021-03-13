@@ -75,6 +75,7 @@ class ParameterSelector(QWidget):
         self.comboBox1.activated[int].connect(self.listChoice)
         self.comboBox1.setCurrentIndex(self.coinListIndex)
         self.comboBox1.setMaximumWidth(200)
+        self.comboBox1.setMinimumWidth(90)
         input_layout.addWidget(self.comboBox1)
         self.comboBox2 = QComboBox(self)
         self.comboBox2.setStyleSheet(
@@ -84,6 +85,7 @@ class ParameterSelector(QWidget):
         self.comboBox2.activated[str].connect(self.timeChoice)
         self.comboBox2.setCurrentIndex(self.timeScale)
         self.comboBox2.setMaximumWidth(200)
+        self.comboBox2.setMinimumWidth(90)
         input_layout.addWidget(self.comboBox2)
         self.comboBox3 = QComboBox(self)
         self.comboBox3.setStyleSheet(
@@ -93,6 +95,7 @@ class ParameterSelector(QWidget):
         self.comboBox3.activated[str].connect(self.currencyChoice)
         self.comboBox3.setCurrentText(self.currency)
         self.comboBox3.setMaximumWidth(200)
+        self.comboBox3.setMinimumWidth(90)
         input_layout.addWidget(self.comboBox3)
 
         self.setLayout(input_layout)
@@ -141,4 +144,3 @@ class ParameterSelector(QWidget):
             self.comboBox3.setStyleSheet(
                 "QComboBox{color: #333333; padding: 0px 18px 0px 3px;} QComboBox:!editable:off, QComboBox::drop-down:editable {background:lightgrey}")
             self.dark_mode = False
-

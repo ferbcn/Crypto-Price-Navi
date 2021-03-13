@@ -59,7 +59,7 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
         self.all_price_data = []
 
 
-    def draw_plots(self, coin_list, currency, timeScale, time, lim, all_price_data):
+    def draw_plots(self, coin_list, currency, timeScale, time, lim, all_price_data, vertical_mode=False):
 
         self.sub_plots = []
 
@@ -68,7 +68,11 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
 
         agregated_volumes = [0 for _ in range(lim+1)]
 
-        row, col = make_grid(coin_list)
+        if vertical_mode:
+            col = 1
+            row = len(coin_list)
+        else:
+            row, col = make_grid(coin_list)
         pl = 1  # sublots counter
 
         for coin in coin_list:
@@ -78,7 +82,8 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
             # draw current sublot
             sub_plt = self.fig.add_subplot(row, col, pl)
             self.sub_plots.append(sub_plt)
-            sub_plt.set_title(coin, color='#000000', size='small')
+            if not vertical_mode:
+                sub_plt.set_title(coin, color='#000000', size='small')
             sub_plt.tick_params(axis='both', which='major', labelsize=6, labelcolor='#000000')
             pl += 1
             # extract prices for current coin from all_price_data
@@ -134,12 +139,16 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
                 sub_plt.yaxis.grid(color=GRID_COL, linestyle='dashed')
                 # sub_plt.tick_params(axis='y', labelcolor=color)
 
-                sub_plt.xaxis.label.set_fontsize('small')
+                if vertical_mode:
+                    sub_plt.xaxis.label.set_fontsize('xx-small')
+                else:
+                    sub_plt.xaxis.label.set_fontsize('small')
+
                 try:
                     price_info = 'Low: {} - High: {} - Last: {}'.format(min(prices), max(prices), prices[lim-1])
                 except ValueError:
                     price_info = 'n/a'
-                sub_plt.set(xlabel=price_info, facecolor='#3a3a3a')
+                sub_plt.set(xlabel=price_info, facecolor='#3a3a3a', xticklabels=[])
 
                 # draw volumes on secondary axis
                 ax2 = sub_plt.twinx()
@@ -154,6 +163,7 @@ class MplPriceChartsCanvas(FigureCanvasQTAgg):
         # update figure
         self.fig.tight_layout(h_pad=1)
         self.fig.canvas.draw()
+
 
 
     def draw_indexed_plots(self, coin_list, currency, timeScale, time, lim, all_price_data):

@@ -14,7 +14,6 @@ from options_menu import ParameterSelector
 from mpl_price_charts import MplPriceChartsCanvas, MplGrowthCanvas, MplCorrelationCanvas
 from coinlist_editor import CoinListEditor
 
-
 ########################
 ##  Global variables  ##
 ########################
@@ -35,22 +34,23 @@ BG_COL_L = "gainsboro"
 FACE_COL_L = "lightgrey"
 
 TITLE_COL = "k"
-GRID_COL = 'grey'
+GRID_COL = "grey"
+
+custom_colors = {"BG_COL_D":"#595959", "FACE_COL_D":"#333333", "BG_COL_L":"gainsboro", "FACE_COL_L":"lightgrey", "TITLE_COL":"k", "GRID_COL":"grey"}
 
 # auto refresh timeout
-UPDATE_TIMEOUT = 300000 #5 min
+UPDATE_TIMEOUT = 300000 # 5 min
 
 ########################
 ##  Helper functions  ##
 ########################
+
 
 def getScreenRes():
     screen_resolution = app.desktop().screenGeometry()
     width, height = screen_resolution.width(), screen_resolution.height()
     return width, height
 
-
-# load all coin list from config files
 def load_coin_lists_from_file():
     # load all coins lists
     with open('all_coins_colors.txt') as json_file:
@@ -142,8 +142,8 @@ class CryptoGui(QtWidgets.QMainWindow):
     def __init__(self, *args, **kwargs):
         super(CryptoGui, self).__init__(*args, **kwargs)
         self.title = 'Crypto Browser'
-        self.setStyleSheet("background-color: #595959")
-        self.canvas_color = BG_COL_D
+        self.canvas_color = custom_colors["BG_COL_D"]
+        self.setStyleSheet("background-color: {}".format(self.canvas_color))
 
         screen_width, screen_height = getScreenRes()
         self.width = int(screen_width / 2)
@@ -157,6 +157,8 @@ class CryptoGui(QtWidgets.QMainWindow):
         self.time = timeLimScale[self.timeScale]
 
         self.dark_mode = True  # light = 0, dark = 1
+        self.vertical = False
+
         self.show_growth_rates_view = False
         self.show_coinlist_editor_view = False  # flag that enables list customizer
         self.show_correlations_view = False
@@ -221,6 +223,11 @@ class CryptoGui(QtWidgets.QMainWindow):
         toggleViewCorr.setStatusTip('Correlations')
         toggleViewCorr.triggered.connect(self.toggle_correlations_view)
 
+        toggle_landscape = QAction(QIcon('images/size.png'), '&Toggle Portrait / Landscape mode', self)
+        toggle_landscape.setShortcut('Ctrl+Z')
+        toggle_landscape.setStatusTip('Resize')
+        toggle_landscape.triggered.connect(self.switch_vertical_mode)
+
         aboutAct = QAction(QIcon('images/about.png'), '&About', self)
         aboutAct.setStatusTip('About')
         aboutAct.triggered.connect(self.dispAbout)
@@ -264,6 +271,7 @@ class CryptoGui(QtWidgets.QMainWindow):
         self.toolbar.addAction(customizeAct)
         self.toolbar.addAction(refreshDataAct)
         self.toolbar.addAction(toggledarklight)
+        self.toolbar.addAction(toggle_landscape)
 
         # create a timer for auto-update of data
         self.timer0 = QTimer(self)
@@ -439,7 +447,7 @@ class CryptoGui(QtWidgets.QMainWindow):
             self.PriceChartCanvas.draw_indexed_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim, self.all_price_data)
         else:
             self.PriceChartCanvas.draw_plots(self.coinList, self.currency, self.timeScale, self.time, self.lim,
-                                             self.all_price_data)
+                                             self.all_price_data, vertical_mode=self.vertical)
         self.PriceChartCanvas.set_color_mode(self.dark_mode)
 
     def switch_color_mode(self):
@@ -486,6 +494,20 @@ class CryptoGui(QtWidgets.QMainWindow):
     def dispAbout(self):
         mes = 'Author: ferbcn <html><br>GitHub: <a href = ""</a> <br>Data API: <a href = "https://min-api.cryptocompare.com/">CryptoCompare API</a></html>'
         QMessageBox.question(self, 'GUI Message', mes, QMessageBox.Ok, QMessageBox.Ok)
+
+
+    def switch_vertical_mode(self):
+        if self.vertical:
+            self.width *= 4
+            self.height /= 2
+            self.setGeometry(self.width, 0, self.width, self.height)
+            self.vertical = False
+        else:
+            self.width /= 4
+            self.height *= 2
+            self.setGeometry(self.width*7, 0, self.width, self.height)
+            self.vertical = True
+        self.redraw_graphs()
 
 
 if __name__ == "__main__":
